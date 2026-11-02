@@ -3,7 +3,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { prompt, model = 'gemini-3.1-flash-lite' } = req.body;
+  const { prompt, model = 'gemini-3.1-flash-lite', expectedCategories = [] } = req.body;
   const apiKey = process.env.GEMINI_API_KEY;
 
   if (!apiKey) {
@@ -15,29 +15,55 @@ export default async function handler(req, res) {
   }
 
   try {
-    const systemPrompt = `Anda adalah konsultan analisis akar masalah (Root Cause Analysis). Analisis masalah berikut: "${prompt}".
+    // Pastikan jika 6M, wajib 6 kategori
+    const default6M = [
+      "Man (Tenaga Kerja)",
+      "Machine (Mesin)",
+      "Method (Metode)",
+      "Material (Bahan Baku)",
+      "Measurement (Pengukuran)",
+      "Milieu / Environment (Lingkungan)"
+    ];
 
-Buat diagram Fishbone beserta draft Corrective Action Plan. Setiap penyebab (cause) wajib dilengkapi dengan "subCause" (detail/akar masalah lebih dalam) dan "actionPlan" (rencana tindakan korektif awal yang dapat dirasionalisasi oleh manusia).
+    const targetCategories = (expectedCategories && expectedCategories.length >= 6)
+      ? expectedCategories
+      : (expectedCategories && expectedCategories.length > 0 ? expectedCategories : default6M);
 
-Kembalikan HANYA format JSON valid tanpa format markdown, tanpa prefix/suffix.
-Format JSON yang diharapkan:
+    const catListStr = targetCategories.map(c => `"${c}"`).join(', ');
+
+    const systemPrompt = `You are a Senior Root Cause Analysis (RCA) & Six Sigma Black Belt Facilitator.
+Tugas Anda adalah membedah laporan insiden/masalah secara MENDALAM, KOMPREHENSIF, dan TEKNIKAL.
+
+MASALAH YANG DIANALISIS:
+"${prompt}"
+
+ATURAN KATEGORI & CABANG (WAJIB DIPATUHI):
+1. Anda WAJIB menghasilkan TEPAT ${targetCategories.length} KATEGORI berikut tanpa dikurangi: [${catListStr}].
+2. Untuk SETIAP kategori, berikan minimal 2 akar masalah (Cause).
+3. Setiap Cause WAJIB memiliki rincian Sub-Cause (anak cabang tulang) dan Action Plan konkret:
+   - "text": Judul akar masalah tingkat 1 yang padat dan jelas (maksimal 5-8 kata).
+   - "subCause": Penjelasan teknis akar masalah tingkat lanjutan/detail kronologi (1-2 kalimat).
+   - "actionPlan": Rekomendasi tindakan perbaikan terukur dan realistis.
+
+FORMAT KELUARAN:
+Kembalikan HANYA format JSON valid tanpa format markdown (tanpa backtick \`\`\`json).
+Format yang diharapkan:
 {
-  "name": "Analisis AI",
-  "problem": "${prompt}",
+  "problem": "Judul masalah utama yang tegas",
+  "conclusion": "Kesimpulan analisis akar masalah secara eksekutif.",
   "categories": [
     {
-      "name": "Nama Kategori (misal: Man, Machine, Method, Material, dll)",
+      "name": "Nama Kategori Sesuai Daftar",
       "causes": [
         {
-          "text": "Penyebab utama tingkat 1 yang ringkas (untuk ditampilkan di tulang diagram)",
-          "subCause": "Detail penjabaran atau akar masalah spesifik tingkat lanjutan",
-          "actionPlan": "Draft rekomendasi tindakan perbaikan konkret dan terukur"
+          "text": "Akar Masalah Utama",
+          "subCause": "Detail akar masalah tingkat lanjutan",
+          "actionPlan": "Rencana tindakan perbaikan"
         }
       ]
     }
   ]
-}
-Catatan: Berikan 4 hingga 6 kategori relevan, dan 2 hingga 3 penyebab lengkap per kategori.`;
+}`;
 
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
@@ -47,7 +73,7 @@ Catatan: Berikan 4 hingga 6 kategori relevan, dan 2 hingga 3 penyebab lengkap pe
         body: JSON.stringify({
           contents: [{ parts: [{ text: systemPrompt }] }],
           generationConfig: {
-            temperature: 0.7,
+            temperature: 0.6,
             responseMimeType: 'application/json'
           }
         })
