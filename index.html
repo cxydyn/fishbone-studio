@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fishbone Studio - Complete 6M with Sub-Cause Bones</title>
+    <title>Fishbone Studio - 6M Dynamic Draggable Bones</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -31,10 +31,10 @@
         import {
             ZoomIn, ZoomOut, RotateCcw, Plus, Download, Printer,
             Sparkles, Info, Layers, ChevronDown, Edit2, Check, X,
-            HelpCircle, Eye, EyeOff, Bot, Wand2, Loader2, Trash2, FileText
+            HelpCircle, Eye, EyeOff, Bot, Wand2, Loader2, Trash2, FileText, Move
         } from 'lucide-react';
 
-        // DEFINISI STANDAR 6M DENGAN 6 KATEGORI PENUH
+        // PRESET LENGKAP 6M (3 ATAS, 3 BAWAH)
         const PRESETS = {
             '6M': {
                 name: '6M (Manufaktur & Rekayasa)',
@@ -61,11 +61,11 @@
                         causes: [
                             { 
                                 text: 'Penurunan presisi hidrolik puncher', 
-                                subCause: 'Seal silinder hidrolik aus akibat suhu oli melebihi 65°C terus-menerus', 
+                                subCause: 'Seal silinder hidrolik aus akibat suhu oli melebihi 65°C terus menerus', 
                                 actionPlan: 'Ganti seal silinder hidrolik tahan panas dan pasang modul chiller pendingin.' 
                             },
                             { 
-                                text: 'Keausan guide pin pada die block', 
+                                text: 'Keausan guide pin die block', 
                                 subCause: 'Clearance guide pin melebihi batas toleransi 0.08 mm', 
                                 actionPlan: 'Ganti guide pin baru dan lakukan flushing pada sistem lubrikasi otomatis.' 
                             }
@@ -121,7 +121,7 @@
                         causes: [
                             { 
                                 text: 'Kelembapan ruang produksi tinggi', 
-                                subCause: 'Kelembapan 85% memicu bintik karat mikro pada permukaan cetakan cadangan', 
+                                subCause: 'Kelembapan 85% memicu bintik karat mikro pada cetakan cadangan', 
                                 actionPlan: 'Pasang industrial dehumidifier dan perbaiki ventilasi aktif lantai produksi.' 
                             },
                             { 
@@ -136,10 +136,10 @@
             '4P': {
                 name: '4P (Pemasaran & Layanan)',
                 problem: 'Konversi Penjualan Kuartal Ini Menurun',
-                conclusion: 'Penurunan konversi disebabkan oleh kendala performa teknis di checkout mobile serta struktur harga yang kalah kompetitif dari promosi kompetitor.',
+                conclusion: 'Penurunan konversi disebabkan oleh kendala performa teknis di checkout mobile serta struktur harga yang kalah kompetitif.',
                 categories: [
                     { id: 'cat-1', name: 'Product (Produk)', color: '#2563EB', causes: [{ text: 'Fitur baru membingungkan user', subCause: 'Navigasi diubah tanpa tutorial onboarding bertahap', actionPlan: 'Rilis interactive product tour 3 langkah.' }] },
-                    { id: 'cat-2', name: 'Price (Harga)', color: '#059669', causes: [{ text: 'Struktur harga kurang kompetitif', subCause: 'Kompetitor meluncurkan diskon 40% skema langganan tahunan', actionPlan: 'Luncurkan paket bundling tahunan fleksibel.' }] },
+                    { id: 'cat-2', name: 'Price (Harga)', color: '#059669', causes: [{ text: 'Struktur harga kurang kompetitif', subCause: 'Kompetitor meluncurkan diskon 40% skema tahunan', actionPlan: 'Luncurkan paket bundling tahunan fleksibel.' }] },
                     { id: 'cat-3', name: 'Place (Saluran)', color: '#D97706', causes: [{ text: 'Latency tinggi di checkout mobile', subCause: 'Payment gateway sering timeout > 8 detik di jam sibuk', actionPlan: 'Gunakan multi-gateway auto-routing.' }] },
                     { id: 'cat-4', name: 'Promotion (Promosi)', color: '#DB2777', causes: [{ text: 'Targeting iklan meleset', subCause: 'Data demografi audiens belum diperbarui pasca update OS', actionPlan: 'Gunakan Conversion API sisi server.' }] }
                 ]
@@ -182,27 +182,28 @@
                             actionPlan: isObj ? (item.actionPlan || '') : '',
                             pic: isObj ? (item.pic || '') : '',
                             dueDate: isObj ? (item.dueDate || '') : '',
-                            offsetX: 0, offsetY: 0, customWidth: null
+                            offsetX: 0, offsetY: 0, customWidth: null,
+                            subOffsetX: 0, subOffsetY: 0, jointOffsetRatio: 0
                         };
                     })
                 }))
             };
         };
 
-        // DIMENSI SVG RESPONSIVE UNTUK 6 KATEGORI (3 ATAS, 3 BAWAH)
-        const SVG_WIDTH = 1520;
+        // UKURAN CANVAS PROPORSI PENUH UNTUK 6M
+        const SVG_WIDTH = 1580;
         const SVG_HEIGHT = 880;
         const SPINE_Y = SVG_HEIGHT / 2;
         const SPINE_START_X = 140;
-        const SPINE_END_X = 1240;
+        const SPINE_END_X = 1320;
 
         function App() {
+            // Anti-cache: Menggunakan v12_dragline untuk memastikan 6M selalu termuat secara default
             const [data, setData] = useState(() => {
                 try {
-                    const saved = localStorage.getItem('fishbone_diagram_data_v9');
+                    const saved = localStorage.getItem('fishbone_diagram_data_v12_dragline');
                     if (saved) {
                         const parsed = JSON.parse(saved);
-                        // Jika tersimpan kurang dari 6 kategori pada preset 6M, paksa muat 6M penuh
                         if (parsed.categories && parsed.categories.length >= 6) return parsed;
                     }
                 } catch (e) {}
@@ -215,7 +216,8 @@
             const [isPanning, setIsPanning] = useState(false);
             const [startPan, setStartPan] = useState({ x: 0, y: 0 });
             
-            const [dragItem, setDragItem] = useState(null);
+            // Drag and Drop States
+            const [dragItem, setDragItem] = useState(null); // { type, id, catId, startX, startY, startWidth }
             const [tempOffsets, setTempOffsets] = useState({});
             const [highlightedCause, setHighlightedCause] = useState(null);
 
@@ -234,10 +236,10 @@
             const svgRef = useRef(null);
 
             useEffect(() => {
-                try { localStorage.setItem('fishbone_diagram_data_v9', JSON.stringify(data)); } catch (e) {}
+                try { localStorage.setItem('fishbone_diagram_data_v12_dragline', JSON.stringify(data)); } catch (e) {}
             }, [data]);
 
-            // INTERAKSI POINTER / PANNING
+            // SISTEM POINTER UNTUK MENGGESER TULANG DAN KOTAK
             const handlePointerDown = (e) => {
                 if (e.target.closest('button') || e.target.closest('.no-pan') || e.target.closest('input') || e.target.closest('textarea') || e.target.closest('td') || editingItem) return;
                 setIsPanning(true);
@@ -274,23 +276,40 @@
                             next.categories = next.categories.map((c) => {
                                 if (c.id === dragItem.catId || c.id === dragItem.id) {
                                     const nextCat = { ...c };
+                                    // Geser ujung tulang kategori
                                     if (dragItem.type === 'cat' && dragItem.id === c.id) {
                                         nextCat.offsetX = (nextCat.offsetX || 0) + (offsets.dx || 0);
                                         nextCat.offsetY = (nextCat.offsetY || 0) + (offsets.dy || 0);
                                     }
+                                    // Geser pangkal tulang kategori di spine
                                     if (dragItem.type === 'cat_bone' && dragItem.catId === c.id) {
                                         nextCat.boneOffsetX = (nextCat.boneOffsetX || 0) + (offsets.dx || 0);
                                         nextCat.boneOffsetY = (nextCat.boneOffsetY || 0) + (offsets.dy || 0);
                                     }
-                                    if ((dragItem.type === 'cause' || dragItem.type === 'resize') && dragItem.catId === c.id) {
+                                    // Geser komponen Cause dan Sub-cause
+                                    if (dragItem.catId === c.id) {
                                         nextCat.causes = nextCat.causes.map(cause => {
                                             if (cause.id === dragItem.id) {
-                                                return {
-                                                    ...cause,
-                                                    offsetX: (cause.offsetX || 0) + (offsets.dx || 0),
-                                                    offsetY: (cause.offsetY || 0) + (offsets.dy || 0),
-                                                    customWidth: dragItem.type === 'resize' ? Math.max(110, (cause.customWidth || dragItem.startWidth) + (offsets.dw || 0)) : cause.customWidth
-                                                };
+                                                const updatedCause = { ...cause };
+                                                // Geser Kotak Cause (Tulang cause otomatis menyesuaikan arah & panjang)
+                                                if (dragItem.type === 'cause') {
+                                                    updatedCause.offsetX = (cause.offsetX || 0) + (offsets.dx || 0);
+                                                    updatedCause.offsetY = (cause.offsetY || 0) + (offsets.dy || 0);
+                                                }
+                                                // Geser Titik Joint di Tulang Kategori
+                                                if (dragItem.type === 'cause_joint') {
+                                                    updatedCause.jointOffsetRatio = (cause.jointOffsetRatio || 0) + (offsets.dy || 0) / 180;
+                                                }
+                                                // Geser Kotak Sub-Cause (Anak tulang sub-cause otomatis menyesuaikan arah)
+                                                if (dragItem.type === 'subcause') {
+                                                    updatedCause.subOffsetX = (cause.subOffsetX || 0) + (offsets.dx || 0);
+                                                    updatedCause.subOffsetY = (cause.subOffsetY || 0) + (offsets.dy || 0);
+                                                }
+                                                // Ubah Lebar Kotak
+                                                if (dragItem.type === 'resize') {
+                                                    updatedCause.customWidth = Math.max(100, (cause.customWidth || dragItem.startWidth) + (offsets.dw || 0));
+                                                }
+                                                return updatedCause;
                                             }
                                             return cause;
                                         });
@@ -310,7 +329,7 @@
             const startDrag = (e, type, id, catId = null) => {
                 e.stopPropagation();
                 setDragItem({ type, id, catId, startX: e.clientX, startY: e.clientY });
-                if (type === 'cause') setHighlightedCause(id);
+                if (type === 'cause' || type === 'subcause') setHighlightedCause(id);
             };
 
             const startResize = (e, id, catId, currentWidth) => {
@@ -326,13 +345,13 @@
                 }
             };
 
-            // CRUD HANDLERS
+            // CRUD OPERATIONS
             const handleAddCategory = () => {
                 const newId = `cat-${Date.now()}`;
                 const nextColor = COLOR_PALETTE[data.categories.length % COLOR_PALETTE.length];
                 setData((prev) => ({
                     ...prev,
-                    categories: [...prev.categories, { id: newId, name: `Kategori Baru ${data.categories.length + 1}`, color: nextColor, offsetX: 0, offsetY: 0, causes: [{ id: `cause-${Date.now()}`, text: 'Penyebab Baru', subCause: 'Rincian sub-cause baru', actionPlan: '', pic: '', dueDate: '', offsetX: 0, offsetY: 0, customWidth: null }] }]
+                    categories: [...prev.categories, { id: newId, name: `Kategori Baru ${data.categories.length + 1}`, color: nextColor, offsetX: 0, offsetY: 0, causes: [{ id: `cause-${Date.now()}`, text: 'Penyebab Baru', subCause: 'Rincian sub-cause baru', actionPlan: '', pic: '', dueDate: '', offsetX: 0, offsetY: 0, subOffsetX: 0, subOffsetY: 0, jointOffsetRatio: 0, customWidth: null }] }]
                 }));
             };
 
@@ -348,7 +367,7 @@
                     ...prev,
                     categories: prev.categories.map((c) => {
                         if (c.id === catId) {
-                            return { ...c, causes: [...c.causes, { id: `cause-${Date.now()}`, text: 'Penyebab baru', subCause: 'Penjelasan sub-cause lanjutan...', actionPlan: '', pic: '', dueDate: '', offsetX: 0, offsetY: 0, customWidth: null }] };
+                            return { ...c, causes: [...c.causes, { id: `cause-${Date.now()}`, text: 'Penyebab baru', subCause: 'Rincian sub-cause lanjutan...', actionPlan: '', pic: '', dueDate: '', offsetX: 0, offsetY: 0, subOffsetX: 0, subOffsetY: 0, jointOffsetRatio: 0, customWidth: null }] };
                         }
                         return c;
                     })
@@ -408,17 +427,17 @@
                 setEditingItem(null);
             };
 
-            // AI GENERATE DENGAN GARANSI 6 KATEGORI
+            // AI GENERATE PERMANEN 6 KATEGORI
             const handleAIGenerate = async () => {
                 if (!aiPrompt.trim()) return setAiError("Deskripsi masalah wajib diisi.");
                 setIsGenerating(true);
                 setAiError('');
                 localStorage.setItem('gemini_model', aiModel);
 
-                // Kirim daftar 6M jika template 6M aktif
-                const expectedCategories = (activePreset === '6M' && data.categories.length < 6)
-                    ? PRESETS['6M'].categories.map(c => c.name)
-                    : data.categories.map(c => c.name);
+                // Selalu kunci 6 kategori jika template 6M aktif
+                const expectedCategories = activePreset === '4P'
+                    ? PRESETS['4P'].categories.map(c => c.name)
+                    : PRESETS['6M'].categories.map(c => c.name);
 
                 try {
                     const response = await fetch('/api/generate', {
@@ -442,10 +461,10 @@
                     }
 
                     const mappedCategories = (parsedData.categories || []).map((cat, i) => {
-                        const existingColor = data.categories[i]?.color || COLOR_PALETTE[i % COLOR_PALETTE.length];
+                        const existingColor = PRESETS['6M'].categories[i]?.color || COLOR_PALETTE[i % COLOR_PALETTE.length];
                         return {
                             id: `cat-ai-${Date.now()}-${i}`,
-                            name: cat.name || `Kategori ${i + 1}`,
+                            name: cat.name || PRESETS['6M'].categories[i]?.name || `Kategori ${i + 1}`,
                             color: existingColor,
                             causes: (cat.causes || []).map((item, j) => {
                                 const isObj = typeof item === 'object' && item !== null;
@@ -455,14 +474,15 @@
                                     subCause: isObj ? (item.subCause || '') : '',
                                     actionPlan: isObj ? (item.actionPlan || '') : '',
                                     pic: '',
-                                    dueDate: ''
+                                    dueDate: '',
+                                    offsetX: 0, offsetY: 0, subOffsetX: 0, subOffsetY: 0, jointOffsetRatio: 0
                                 };
                             })
                         };
                     });
 
                     setData(formatPresetData({
-                        name: 'Hasil Analisis 6M',
+                        name: 'Hasil Analisis 6M Lengkap',
                         problem: parsedData.problem || aiPrompt,
                         conclusion: parsedData.conclusion || 'Analisis 6M telah disusun secara komprehensif.',
                         categories: mappedCategories
@@ -500,7 +520,7 @@
                         ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, SVG_WIDTH, SVG_HEIGHT);
                         ctx.drawImage(img, 0, 0, SVG_WIDTH, SVG_HEIGHT);
                         const link = document.createElement('a'); 
-                        link.download = `Fishbone-6M-${Date.now()}.png`;
+                        link.download = `Fishbone-6M-Bones-${Date.now()}.png`;
                         link.href = canvas.toDataURL('image/png'); 
                         link.click();
                         URL.revokeObjectURL(blobURL); 
@@ -512,24 +532,23 @@
                 }
             };
 
-            // PENGELOMPOKAN 6 KATEGORI: 3 DI ATAS, 3 DI BAWAH
+            // 6 KATEGORI: 3 DI SISI ATAS (Index Genap), 3 DI SISI BAWAH (Index Ganjil)
             const topCategories = data.categories.filter((_, idx) => idx % 2 === 0);
             const bottomCategories = data.categories.filter((_, idx) => idx % 2 !== 0);
 
-            // GEOMETRI TULANG KATEGORI (DISTRIBUSI RATA DI SEPANJANG TULANG BELAKANG)
+            // METRIK GEOMETRI TULANG KATEGORI
             const getRibMetrics = (index, total, isTop) => {
                 const availableLength = SPINE_END_X - SPINE_START_X - 60;
                 const step = total > 1 ? availableLength / total : availableLength / 2;
                 const baseX = SPINE_START_X + 60 + index * step + step * 0.45;
-                const ribLength = 290;
+                const ribLength = 300;
                 const dx = Math.cos(Math.PI / 3) * ribLength; // 60 derajat
                 const dy = Math.sin(Math.PI / 3) * ribLength;
                 return { 
                     baseX, 
                     baseY: SPINE_Y, 
                     tipX: baseX - dx, 
-                    tipY: isTop ? SPINE_Y - dy : SPINE_Y + dy, 
-                    step 
+                    tipY: isTop ? SPINE_Y - dy : SPINE_Y + dy 
                 };
             };
 
@@ -558,9 +577,9 @@
                             </div>
                             <div>
                                 <h1 className="text-lg font-bold tracking-tight text-slate-800 flex items-center gap-2">
-                                    Fishbone Studio <span className="text-[10px] font-medium uppercase px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 border border-blue-200">6M Full Bones</span>
+                                    Fishbone Studio <span className="text-[10px] font-medium uppercase px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 border border-blue-200">6M Interactive Bones</span>
                                 </h1>
-                                <p className="text-xs text-slate-500 hidden sm:block">Root Cause & Action Plan Manager</p>
+                                <p className="text-xs text-slate-500 hidden sm:block">Akar Masalah & Rencana Aksi Terintegrasi</p>
                             </div>
                         </div>
 
@@ -582,7 +601,7 @@
                             </div>
 
                             <button onClick={() => setShowAIModal(true)} className="flex items-center space-x-1.5 px-3 py-1.5 text-sm font-medium bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg transition">
-                                <Bot className="w-4 h-4" /><span className="hidden sm:inline">AI Generate ({data.categories.length} Kategori)</span>
+                                <Bot className="w-4 h-4" /><span className="hidden sm:inline">AI Generate (6M Penuh)</span>
                             </button>
                             <button onClick={handleAddCategory} className="flex items-center space-x-1.5 px-3 py-1.5 text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm transition">
                                 <Plus className="w-4 h-4" /><span className="hidden sm:inline">Kategori</span>
@@ -597,7 +616,7 @@
                         </div>
                     </header>
 
-                    {/* CANVAS WORKSPACE DENGAN TULANG SUB-CAUSE TERHUBUNG */}
+                    {/* CANVAS WORKSPACE DENGAN TULANG INTERAKTIF BEBAS GESER */}
                     <div ref={containerRef} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onWheel={handleWheel} className={`relative w-full h-[62vh] shrink-0 bg-slate-50 overflow-hidden flex items-center justify-center border-b border-slate-200 shadow-inner cursor-${isPanning ? 'grabbing' : 'grab'} print-wrapper`}>
                         <div id="canvas-bg" className="absolute inset-0 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:24px_24px] opacity-60 pointer-events-none" />
                         
@@ -610,8 +629,8 @@
                         </div>
 
                         <div className="absolute top-3 left-4 text-xs text-slate-500 pointer-events-none no-print flex items-center gap-1.5 bg-white/80 backdrop-blur px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm">
-                            <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-                            <span>Setiap Cause memiliki <b>Tulang Cabang</b>, dan Sub-cause memiliki <b>Anak Tulang</b> tersendiri. Double-click untuk mengedit.</span>
+                            <Move className="w-3.5 h-3.5 text-blue-600" />
+                            <span><b>Geser Bebas:</b> Tarik kotak Cause atau Sub-cause untuk mengubah arah & panjang tulangnya masing-masing. Geser titik bulat untuk menggeser persendian tulang.</span>
                         </div>
 
                         <div style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, transformOrigin: 'center center', transition: isPanning ? 'none' : 'transform 0.1s ease-out' }} className="relative diagram-scalable-wrapper">
@@ -624,7 +643,7 @@
 
                                 <rect x="16" y="16" width={SVG_WIDTH - 32} height={SVG_HEIGHT - 32} rx="20" fill="#ffffff" stroke="#e2e8f0" strokeWidth="2" className="canvas-outer-bg" />
 
-                                {/* TULANG BELAKANG (SPINE UTAMA) */}
+                                {/* TULANG BELAKANG UTAMA (SPINE) */}
                                 <g className="fish-tail">
                                     <path d={`M ${SPINE_START_X} ${SPINE_Y} L ${SPINE_START_X - 55} ${SPINE_Y - 50} Q ${SPINE_START_X - 70} ${SPINE_Y} ${SPINE_START_X - 55} ${SPINE_Y + 50} Z`} fill="#f1f5f9" stroke="#94a3b8" strokeWidth="2.5" />
                                     <path d={`M ${SPINE_START_X - 15} ${SPINE_Y - 20} L ${SPINE_START_X - 45} ${SPINE_Y - 35}`} stroke="#cbd5e1" strokeWidth="2" />
@@ -632,7 +651,7 @@
                                 </g>
                                 <line x1={SPINE_START_X} y1={SPINE_Y} x2={SPINE_END_X} y2={SPINE_Y} stroke="#94a3b8" strokeWidth="4.5" strokeLinecap="round" markerEnd="url(#spine-arrow-light)" />
 
-                                {/* RENDER KATEGORI 6M (3 ATAS, 3 BAWAH) */}
+                                {/* 6M FULL CATEGORIES (3 DI ATAS, 3 DI BAWAH) */}
                                 {[topCategories, bottomCategories].map((cats, isBottomIdx) => {
                                     const isTop = isBottomIdx === 0;
                                     return cats.map((cat, idx) => {
@@ -645,108 +664,188 @@
 
                                         return (
                                             <g key={cat.id}>
-                                                {/* 1. TULANG KATEGORI (DIAGONAL UTAMA 60 DERAJAT) */}
+                                                {/* 1. TULANG KATEGORI UTAMA (DIAGONAL 60 DERAJAT) */}
                                                 <g className="cursor-grab active:cursor-grabbing group" onPointerDown={(e) => startDrag(e, 'cat_bone', `bone-${cat.id}`, cat.id)}>
                                                     <line x1={actualBaseX} y1={actualBaseY} x2={actualTipX} y2={actualTipY} stroke="transparent" strokeWidth="20" />
                                                     <line x1={actualBaseX} y1={actualBaseY} x2={actualTipX} y2={actualTipY} stroke={cat.color} strokeWidth="3.5" strokeLinecap="round" />
-                                                    <circle cx={actualBaseX} cy={actualBaseY} r="5" fill="#fff" stroke={cat.color} strokeWidth="2.5" />
+                                                    {/* Pangkal Tulang di Spine (Bisa Ditarik/Digeser) */}
+                                                    <circle cx={actualBaseX} cy={actualBaseY} r="6" fill="#ffffff" stroke={cat.color} strokeWidth="3" className="hover:scale-125 transition-transform" />
                                                 </g>
 
                                                 {/* 2. CABANG TULANG PENYEBAB & ANAK TULANG SUB-PENYEBAB */}
                                                 {cat.causes.map((cause, cIdx) => {
-                                                    const ratio = (cIdx + 1) / (cat.causes.length + 1);
-                                                    const ribPointX = actualBaseX + (actualTipX - actualBaseX) * ratio;
-                                                    const ribPointY = actualBaseY + (actualTipY - actualBaseY) * ratio;
-                                                    const cDx = tempOffsets[cause.id]?.dx||0, cDy = tempOffsets[cause.id]?.dy||0, cDw = tempOffsets[cause.id]?.dw||0;
+                                                    const baseRatio = (cIdx + 1) / (cat.causes.length + 1);
+                                                    const jointRatio = Math.max(0.15, Math.min(0.85, baseRatio + (cause.jointOffsetRatio || 0)));
+                                                    
+                                                    // Titik Persendian di Tulang Kategori (Bisa Digeser Naik-Turun)
+                                                    const jointDx = tempOffsets[`joint-${cause.id}`]?.dx || 0;
+                                                    const jointDy = tempOffsets[`joint-${cause.id}`]?.dy || 0;
+                                                    const jointX = actualBaseX + (actualTipX - actualBaseX) * jointRatio + jointDx;
+                                                    const jointY = actualBaseY + (actualTipY - actualBaseY) * jointRatio + jointDy;
 
-                                                    // Panjang tulang cabang penyebab
-                                                    const causeBoneLen = 110 + cDw;
-                                                    const causeEndX = ribPointX - causeBoneLen;
-                                                    const causeEndY = ribPointY;
+                                                    // Posisi Kotak Cause (Bisa Digeser Bebas)
+                                                    const cDx = tempOffsets[cause.id]?.dx || 0;
+                                                    const cDy = tempOffsets[cause.id]?.dy || 0;
+                                                    const cDw = tempOffsets[cause.id]?.dw || 0;
 
-                                                    // Kotak Cause
-                                                    const causeW = Math.max(120, 140 + cDw);
+                                                    const causeW = Math.max(120, (cause.customWidth || 140) + cDw);
                                                     const causeLines = wrapText(cause.text || '', Math.floor((causeW - 20) / 7.2));
-                                                    const causeH = Math.max(30, causeLines.length * 14 + 14);
-                                                    const causeBoxX = causeEndX - causeW + (cause.offsetX||0) + cDx;
-                                                    const causeBoxY = causeEndY - causeH / 2 + (cause.offsetY||0) + cDy;
+                                                    const causeH = Math.max(32, causeLines.length * 14 + 14);
 
-                                                    // Titik cabang anak tulang sub-cause (bercabang dari tulang penyebab)
-                                                    const subOriginX = ribPointX - 45 + (cause.offsetX||0) + cDx;
-                                                    const subOriginY = ribPointY + (cause.offsetY||0) + cDy;
+                                                    const defaultCauseX = jointX - 110 - causeW;
+                                                    const defaultCauseY = jointY - causeH / 2;
+                                                    const causeBoxX = defaultCauseX + (cause.offsetX || 0) + cDx;
+                                                    const causeBoxY = defaultCauseY + (cause.offsetY || 0) + cDy;
 
-                                                    // Sudut anak tulang sub-cause (diagonal 60 derajat sejajar tulang kategori)
-                                                    const subBoneLen = 50;
-                                                    const subDx = Math.cos(Math.PI / 3) * subBoneLen; // 25px
-                                                    const subDy = Math.sin(Math.PI / 3) * subBoneLen; // 43.3px
-                                                    const subTipX = subOriginX - subDx;
-                                                    const subTipY = isTop ? (subOriginY - subDy) : (subOriginY + subDy);
+                                                    // Titik Ujung Tulang Cause yang Menempel ke Kotak Cause
+                                                    const causeAnchorX = causeBoxX + causeW;
+                                                    const causeAnchorY = causeBoxY + causeH / 2;
 
-                                                    // Kotak Sub-Cause
+                                                    // Titik Persendian Anak Tulang Sub-cause (di tengah-tengah tulang cause)
+                                                    const subOriginX = (jointX + causeAnchorX) / 2;
+                                                    const subOriginY = (jointY + causeAnchorY) / 2;
+
+                                                    // Posisi Kotak Sub-Cause (Bisa Digeser Bebas Secara Mandiri)
+                                                    const subDx = tempOffsets[`sub-${cause.id}`]?.dx || 0;
+                                                    const subDy = tempOffsets[`sub-${cause.id}`]?.dy || 0;
+
                                                     const subW = Math.max(130, 150 + cDw);
-                                                    const subLines = wrapText(cause.subCause || '(Klik 2x isi sub-cause)', Math.floor((subW - 24) / 6.2));
+                                                    const subLines = wrapText(cause.subCause || '(Klik 2x isi detail)', Math.floor((subW - 24) / 6.2));
                                                     const subH = Math.max(26, subLines.length * 12 + 14);
-                                                    const subBoxX = subTipX - subW;
-                                                    const subBoxY = isTop ? (subTipY - subH + 10) : (subTipY - 10);
+
+                                                    const defaultSubX = subOriginX - subW - 30;
+                                                    const defaultSubY = subOriginY + (isTop ? -45 : 35);
+                                                    const subBoxX = defaultSubX + (cause.subOffsetX || 0) + subDx;
+                                                    const subBoxY = defaultSubY + (cause.subOffsetY || 0) + subDy;
+
+                                                    // Titik Ujung Anak Tulang yang Menempel ke Kotak Sub-cause
+                                                    const subAnchorX = subBoxX + subW;
+                                                    const subAnchorY = subBoxY + subH / 2;
 
                                                     const isHighlighted = highlightedCause === cause.id;
 
                                                     return (
-                                                        <g 
-                                                            key={cause.id} 
-                                                            className="cause-hierarchical-group cursor-grab active:cursor-grabbing" 
-                                                            onPointerDown={(e) => startDrag(e, 'cause', cause.id, cat.id)}
-                                                            onDoubleClick={(e) => {
-                                                                e.stopPropagation();
-                                                                setEditingItem({
-                                                                    catId: cat.id,
-                                                                    causeIndex: cIdx,
-                                                                    text: cause.text,
-                                                                    subCause: cause.subCause || ''
-                                                                });
-                                                            }}
-                                                        >
-                                                            {/* GARIS TULANG PENYEBAB (HORIZONTAL BONE) */}
-                                                            <line x1={ribPointX} y1={ribPointY} x2={causeBoxX + causeW} y2={causeEndY + (cause.offsetY||0) + cDy} stroke={cat.color} strokeWidth="2.5" strokeLinecap="round" />
-                                                            <circle cx={ribPointX} cy={ribPointY} r="3.5" fill={cat.color} />
+                                                        <g key={cause.id} className="cause-hierarchical-group">
+                                                            
+                                                            {/* TULANG PENYEBAB (GARIS YANG MENGHUBUNGKAN PERSENDIAN KE KOTAK CAUSE) */}
+                                                            <line 
+                                                                x1={jointX} 
+                                                                y1={jointY} 
+                                                                x2={causeAnchorX} 
+                                                                y2={causeAnchorY} 
+                                                                stroke={cat.color} 
+                                                                strokeWidth="2.5" 
+                                                                strokeLinecap="round" 
+                                                            />
 
-                                                            {/* KOTAK PENYEBAB UTAMA (MAIN CAUSE) */}
-                                                            {isHighlighted && <rect x={causeBoxX-3} y={causeBoxY-3} width={causeW+6} height={causeH+6} rx="8" fill="none" stroke="#FBBF24" strokeWidth="3" className="animate-pulse" />}
-                                                            <rect x={causeBoxX} y={causeBoxY} width={causeW} height={causeH} rx="5" fill={isHighlighted ? '#FEF9C3' : '#ffffff'} stroke={isHighlighted ? '#F59E0B' : cat.color} strokeWidth="1.8" className="shadow-sm hover:stroke-blue-500 transition" />
-                                                            <rect x={causeBoxX} y={causeBoxY} width="4" height={causeH} rx="2" fill={cat.color} />
-                                                            {causeLines.map((line, lIdx) => (
-                                                                <text key={lIdx} x={causeBoxX + 10} y={causeBoxY + 14 + lIdx * 14} fill="#0f172a" fontSize="10.5" fontFamily="sans-serif" fontWeight="700" className="pointer-events-none">
-                                                                    {line}
-                                                                </text>
-                                                            ))}
+                                                            {/* TITIK PERSENDIAN CAUSE (BISA DITARIK UNTUK GESER NAIK-TURUN TULANG KATEGORI) */}
+                                                            <circle 
+                                                                cx={jointX} 
+                                                                cy={jointY} 
+                                                                r="4.5" 
+                                                                fill="#ffffff" 
+                                                                stroke={cat.color} 
+                                                                strokeWidth="2.5" 
+                                                                className="cursor-ns-resize hover:scale-150 transition-transform no-print"
+                                                                title="Tarik untuk menggeser posisi cabang di tulang utama"
+                                                                onPointerDown={(e) => startDrag(e, 'cause_joint', cause.id, cat.id)}
+                                                            />
 
-                                                            {/* GARIS ANAK TULANG SUB-PENYEBAB (SUB-CAUSE BONE) */}
-                                                            <line x1={subOriginX} y1={subOriginY} x2={subTipX} y2={subTipY} stroke="#94A3B8" strokeWidth="2" strokeDasharray="3 2" />
+                                                            {/* ANAK TULANG SUB-PENYEBAB (GARIS DARI TULANG CAUSE KE KOTAK SUB-CAUSE) */}
+                                                            <line 
+                                                                x1={subOriginX} 
+                                                                y1={subOriginY} 
+                                                                x2={subAnchorX} 
+                                                                y2={subAnchorY} 
+                                                                stroke="#64748B" 
+                                                                strokeWidth="1.8" 
+                                                                strokeDasharray="3 2" 
+                                                                strokeLinecap="round" 
+                                                            />
                                                             <circle cx={subOriginX} cy={subOriginY} r="3" fill="#64748B" />
 
-                                                            {/* KOTAK SUB-PENYEBAB (SUB-CAUSE CARD DI UJUNG ANAK TULANG) */}
-                                                            <rect x={subBoxX} y={subBoxY} width={subW} height={subH} rx="4" fill="#F8FAFC" stroke="#CBD5E1" strokeWidth="1.2" className="shadow-xs hover:stroke-blue-400 transition" />
-                                                            <path d={`M ${subBoxX} ${subBoxY} L ${subBoxX + 3} ${subBoxY} L ${subBoxX + 3} ${subBoxY + subH} L ${subBoxX} ${subBoxY + subH} Z`} fill="#94A3B8" />
-                                                            <text x={subBoxX + 8} y={subBoxY + 11} fill={cat.color} fontSize="8" fontWeight="800" letterSpacing="0.04em">↳ SUB-CAUSE:</text>
-                                                            {subLines.map((sLine, sIdx) => (
-                                                                <text key={sIdx} x={subBoxX + 8} y={subBoxY + 22 + sIdx * 12} fill="#475569" fontSize="9" fontFamily="sans-serif" fontStyle="italic" className="pointer-events-none">
-                                                                    {sLine}
-                                                                </text>
-                                                            ))}
-
-                                                            {/* Handle Resize */}
-                                                            <path d={`M ${causeBoxX+causeW-10} ${causeBoxY+causeH} L ${causeBoxX+causeW} ${causeBoxY+causeH} L ${causeBoxX+causeW} ${causeBoxY+causeH-10} Z`} fill="#cbd5e1" className="cursor-nwse-resize no-print hover:fill-blue-500" onPointerDown={(e) => startResize(e, cause.id, cat.id, causeW)} />
-                                                            
-                                                            {/* Tombol Hapus */}
-                                                            <g className="opacity-0 hover:opacity-100 transition no-print cursor-pointer" onPointerDown={e => e.stopPropagation()} onClick={e => handleDeleteCause(cat.id, cIdx, e)}>
-                                                                <rect x={causeBoxX+causeW-18} y={causeBoxY-8} width="16" height="16" rx="8" fill="#ef4444" />
-                                                                <text x={causeBoxX+causeW-14} y={causeBoxY+4} fill="#fff" fontSize="10" fontWeight="bold">×</text>
+                                                            {/* KOTAK SUB-CAUSE (BISA DIGESER MANDIRI BEBAS KE MANA SAJA) */}
+                                                            <g 
+                                                                className="cursor-grab active:cursor-grabbing group/sub"
+                                                                onPointerDown={(e) => startDrag(e, 'subcause', cause.id, cat.id)}
+                                                                onDoubleClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setEditingItem({
+                                                                        catId: cat.id,
+                                                                        causeIndex: cIdx,
+                                                                        text: cause.text,
+                                                                        subCause: cause.subCause || ''
+                                                                    });
+                                                                }}
+                                                            >
+                                                                <rect 
+                                                                    x={subBoxX} 
+                                                                    y={subBoxY} 
+                                                                    width={subW} 
+                                                                    height={subH} 
+                                                                    rx="4" 
+                                                                    fill="#F8FAFC" 
+                                                                    stroke="#94A3B8" 
+                                                                    strokeWidth="1.2" 
+                                                                    className="shadow-xs hover:stroke-blue-500 hover:shadow-md transition" 
+                                                                />
+                                                                <path d={`M ${subBoxX} ${subBoxY} L ${subBoxX + 3.5} ${subBoxY} L ${subBoxX + 3.5} ${subBoxY + subH} L ${subBoxX} ${subBoxY + subH} Z`} fill="#64748B" />
+                                                                <text x={subBoxX + 8} y={subBoxY + 11} fill={cat.color} fontSize="8" fontWeight="800" letterSpacing="0.04em">↳ SUB-CAUSE:</text>
+                                                                {subLines.map((sLine, sIdx) => (
+                                                                    <text key={sIdx} x={subBoxX + 8} y={subBoxY + 22 + sIdx * 12} fill="#334155" fontSize="9" fontFamily="sans-serif" fontStyle="italic" className="pointer-events-none">
+                                                                        {sLine}
+                                                                    </text>
+                                                                ))}
                                                             </g>
+
+                                                            {/* KOTAK CAUSE UTAMA (BISA DIGESER MANDIRI BEBAS KE MANA SAJA) */}
+                                                            <g 
+                                                                className="cursor-grab active:cursor-grabbing group/cause"
+                                                                onPointerDown={(e) => startDrag(e, 'cause', cause.id, cat.id)}
+                                                                onDoubleClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setEditingItem({
+                                                                        catId: cat.id,
+                                                                        causeIndex: cIdx,
+                                                                        text: cause.text,
+                                                                        subCause: cause.subCause || ''
+                                                                    });
+                                                                }}
+                                                            >
+                                                                {isHighlighted && <rect x={causeBoxX-3} y={causeBoxY-3} width={causeW+6} height={causeH+6} rx="8" fill="none" stroke="#FBBF24" strokeWidth="3" className="animate-pulse" />}
+                                                                <rect 
+                                                                    x={causeBoxX} 
+                                                                    y={causeBoxY} 
+                                                                    width={causeW} 
+                                                                    height={causeH} 
+                                                                    rx="5" 
+                                                                    fill={isHighlighted ? '#FEF9C3' : '#ffffff'} 
+                                                                    stroke={isHighlighted ? '#F59E0B' : cat.color} 
+                                                                    strokeWidth="1.8" 
+                                                                    className="shadow-sm hover:stroke-blue-600 hover:shadow-md transition" 
+                                                                />
+                                                                <rect x={causeBoxX} y={causeBoxY} width="4" height={causeH} rx="2" fill={cat.color} />
+                                                                {causeLines.map((line, lIdx) => (
+                                                                    <text key={lIdx} x={causeBoxX + 10} y={causeBoxY + 14 + lIdx * 14} fill="#0f172a" fontSize="10.5" fontFamily="sans-serif" fontWeight="700" className="pointer-events-none">
+                                                                        {line}
+                                                                    </text>
+                                                                ))}
+
+                                                                {/* Titik Resize Kotak Cause */}
+                                                                <path d={`M ${causeBoxX+causeW-10} ${causeBoxY+causeH} L ${causeBoxX+causeW} ${causeBoxY+causeH} L ${causeBoxX+causeW} ${causeBoxY+causeH-10} Z`} fill="#cbd5e1" className="cursor-nwse-resize no-print hover:fill-blue-500" onPointerDown={(e) => startResize(e, cause.id, cat.id, causeW)} />
+                                                                
+                                                                {/* Tombol Hapus Baris Cause */}
+                                                                <g className="opacity-0 hover:opacity-100 transition no-print cursor-pointer" onPointerDown={e => e.stopPropagation()} onClick={e => handleDeleteCause(cat.id, cIdx, e)}>
+                                                                    <rect x={causeBoxX+causeW-18} y={causeBoxY-8} width="16" height="16" rx="8" fill="#ef4444" />
+                                                                    <text x={causeBoxX+causeW-14} y={causeBoxY+4} fill="#fff" fontSize="10" fontWeight="bold">×</text>
+                                                                </g>
+                                                            </g>
+
                                                         </g>
                                                     );
                                                 })}
 
-                                                {/* KOTAK NAMA KATEGORI DI UJUNG TULANG UTAMA */}
+                                                {/* 3. KOTAK KATEGORI (DI UJUNG TULANG KATEGORI) */}
                                                 {(() => {
                                                     const lines = wrapText(cat.name, 18);
                                                     const catW = Math.max(120, Math.max(...lines.map(l => l.length)) * 8 + 40);
@@ -755,7 +854,7 @@
                                                     
                                                     return (
                                                         <g className="cursor-grab active:cursor-grabbing" onPointerDown={e => startDrag(e, 'cat', cat.id)}>
-                                                            <rect x={cBoxX} y={cBoxY} width={catW} height={catH} rx="6" fill="#ffffff" stroke={cat.color} strokeWidth="2.5" className="shadow-sm" />
+                                                            <rect x={cBoxX} y={cBoxY} width={catW} height={catH} rx="6" fill="#ffffff" stroke={cat.color} strokeWidth="2.5" className="shadow-sm hover:shadow-md transition" />
                                                             {lines.map((l, i) => <text key={i} x={cBoxX + 12} y={cBoxY + 20 + i*16} fill="#0f172a" fontSize="12" fontWeight="bold" fontFamily="sans-serif" className="pointer-events-none">{l}</text>)}
                                                             
                                                             <g className="cursor-pointer hover:opacity-80 no-print" onPointerDown={e=>e.stopPropagation()} onClick={e=>handleAddCause(cat.id, e)}>
@@ -772,7 +871,7 @@
                                     });
                                 })}
 
-                                {/* KEPALA IKAN / MASALAH UTAMA */}
+                                {/* KEPALA IKAN (PROBLEM STATEMENT) */}
                                 <g className="cursor-grab active:cursor-grabbing" transform={`translate(${(data.problemOffsetX||0)+(tempOffsets['problem']?.dx||0)}, ${(data.problemOffsetY||0)+(tempOffsets['problem']?.dy||0)})`} onPointerDown={e => startDrag(e, 'problem', 'problem')}>
                                     <path d={`M ${SPINE_END_X} ${SPINE_Y - 95} C ${SPINE_END_X + 90} ${SPINE_Y - 95}, ${SPINE_END_X + 170} ${SPINE_Y - 55}, ${SPINE_END_X + 220} ${SPINE_Y} C ${SPINE_END_X + 170} ${SPINE_Y + 55}, ${SPINE_END_X + 90} ${SPINE_Y + 95}, ${SPINE_END_X} ${SPINE_Y + 95} Z`} fill="#ffffff" stroke="#2563eb" strokeWidth="2.5" className="drop-shadow-md" />
                                     <circle cx={SPINE_END_X + 175} cy={SPINE_Y - 35} r="6" fill="#3b82f6" />
@@ -785,7 +884,7 @@
                         </div>
                     </div>
 
-                    {/* CORRECTIVE ACTION PLAN TABLE */}
+                    {/* ACTION PLAN TABLE & SUMMARY */}
                     <div className="flex-1 w-full max-w-7xl mx-auto p-4 md:p-8 table-wrapper bg-slate-50 space-y-6">
                         
                         {data.conclusion && (
@@ -810,7 +909,7 @@
                             <div className="px-6 py-4 border-b border-slate-200 flex flex-wrap gap-4 justify-between items-center bg-white">
                                 <div>
                                     <h2 className="text-lg font-bold text-[#005073] uppercase tracking-wide">Corrective Action Plan (CAPA)</h2>
-                                    <p className="text-xs text-slate-500 mt-0.5">Perubahan di tabel langsung memperbarui diagram tulang di atas secara real-time.</p>
+                                    <p className="text-xs text-slate-500 mt-0.5">Kategori, Cause, dan Sub-cause terhubung secara visual dua arah dengan diagram di atas.</p>
                                 </div>
                                 <button onClick={() => { if(data.categories.length > 0) handleAddCause(data.categories[0].id); }} className="bg-[#059669] hover:bg-[#047857] text-white px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 shadow-sm no-print">
                                     <Plus className="w-4 h-4" /> Tambah Baris Manual
@@ -964,7 +1063,7 @@
                         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 no-print">
                             <div className="bg-white border border-slate-200 w-full max-w-lg rounded-2xl p-6 shadow-2xl space-y-5">
                                 <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                                    <h3 className="text-base font-bold text-slate-800 flex items-center gap-2"><Wand2 className="w-5 h-5 text-indigo-500" /> AI Deep RCA Generator (6M)</h3>
+                                    <h3 className="text-base font-bold text-slate-800 flex items-center gap-2"><Wand2 className="w-5 h-5 text-indigo-500" /> AI Deep RCA Generator (6M Penuh)</h3>
                                     <button onClick={() => !isGenerating && setShowAIModal(false)} className="text-slate-400 hover:text-slate-700 bg-slate-100 p-1.5 rounded-lg"><X className="w-4 h-4" /></button>
                                 </div>
                                 <div className="space-y-4">
@@ -982,7 +1081,7 @@
                                     <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-800">
                                         <p className="font-semibold mb-1">Target 6 Kategori Penuh (6M):</p>
                                         <div className="flex flex-wrap gap-1">
-                                            {data.categories.map(c => (
+                                            {PRESETS['6M'].categories.map(c => (
                                                 <span key={c.id} className="bg-white border border-blue-200 px-2 py-0.5 rounded text-[11px] font-medium text-slate-700">
                                                     {c.name}
                                                 </span>
