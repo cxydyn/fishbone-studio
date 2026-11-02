@@ -686,4 +686,441 @@
                                                 </g>
 
                                                 {/* 2. CABANG TULANG PENYEBAB & ANAK TULANG SUB-PENYEBAB INDEPENDEN */}
-                                                {cat.causes.map((cause, cIdx)
+                                                {cat.causes.map((cause, cIdx) => {
+                                                    const baseRatio = (cIdx + 1) / (cat.causes.length + 1);
+                                                    const jointRatio = Math.max(0.15, Math.min(0.85, baseRatio + (cause.jointOffsetRatio || 0)));
+                                                    
+                                                    // Titik Persendian di Tulang Kategori
+                                                    const jointDx = tempOffsets[`joint-${cause.id}`]?.dx || 0;
+                                                    const jointDy = tempOffsets[`joint-${cause.id}`]?.dy || 0;
+                                                    const jointX = actualBaseX + (actualTipX - actualBaseX) * jointRatio + jointDx;
+                                                    const jointY = actualBaseY + (actualTipY - actualBaseY) * jointRatio + jointDy;
+
+                                                    // KOORDINAT KOTAK CAUSE (TERISOLASI)
+                                                    const cDx = tempOffsets[cause.id]?.dx || 0;
+                                                    const cDy = tempOffsets[cause.id]?.dy || 0;
+                                                    const cDw = tempOffsets[`resize-${cause.id}`]?.dw || 0;
+
+                                                    const causeW = Math.max(120, (cause.customWidth || 140) + cDw);
+                                                    const causeLines = wrapText(cause.text || '', Math.floor((causeW - 20) / 7.2));
+                                                    const causeH = Math.max(32, causeLines.length * 14 + 14);
+
+                                                    const defaultCauseX = jointX - 110 - causeW;
+                                                    const defaultCauseY = jointY - causeH / 2;
+                                                    const causeBoxX = defaultCauseX + (cause.offsetX || 0) + cDx;
+                                                    const causeBoxY = defaultCauseY + (cause.offsetY || 0) + cDy;
+
+                                                    const causeAnchorX = causeBoxX + causeW;
+                                                    const causeAnchorY = causeBoxY + causeH / 2;
+
+                                                    // KOORDINAT KOTAK SUB-CAUSE (TERISOLASI DARI PERGERAKAN CAUSE)
+                                                    const subDx = tempOffsets[`sub-${cause.id}`]?.dx || 0;
+                                                    const subDy = tempOffsets[`sub-${cause.id}`]?.dy || 0;
+
+                                                    const subW = Math.max(130, 150 + cDw);
+                                                    const subLines = wrapText(cause.subCause || '(Klik 2x isi detail)', Math.floor((subW - 24) / 6.2));
+                                                    const subH = Math.max(26, subLines.length * 12 + 14);
+
+                                                    // Titik dasar sub-cause mengacu pada joint stabil, BUKAN kotak cause yang sedang ditarik
+                                                    const defaultSubX = jointX - 110 - subW;
+                                                    const defaultSubY = jointY + (isTop ? -55 : 55);
+                                                    const subBoxX = defaultSubX + (cause.subOffsetX || 0) + subDx;
+                                                    const subBoxY = defaultSubY + (cause.subOffsetY || 0) + subDy;
+
+                                                    const subAnchorX = subBoxX + subW;
+                                                    const subAnchorY = subBoxY + subH / 2;
+
+                                                    // Titik pangkal anak tulang sub-cause menempel di tengah tulang cause
+                                                    const subOriginX = (jointX + causeAnchorX) / 2;
+                                                    const subOriginY = (jointY + causeAnchorY) / 2;
+
+                                                    const isHighlighted = highlightedCause === cause.id;
+
+                                                    return (
+                                                        <g key={cause.id} className="cause-hierarchical-group">
+                                                            
+                                                            {/* TULANG PENYEBAB (GARIS KE KOTAK CAUSE) */}
+                                                            <line 
+                                                                x1={jointX} 
+                                                                y1={jointY} 
+                                                                x2={causeAnchorX} 
+                                                                y2={causeAnchorY} 
+                                                                stroke={cat.color} 
+                                                                strokeWidth="2.5" 
+                                                                strokeLinecap="round" 
+                                                            />
+
+                                                            {/* TITIK PERSENDIAN CAUSE (BISA DITARIK NAIK-TURUN DI TULANG UTAMA) */}
+                                                            <circle 
+                                                                cx={jointX} 
+                                                                cy={jointY} 
+                                                                r="4.5" 
+                                                                fill="#ffffff" 
+                                                                stroke={cat.color} 
+                                                                strokeWidth="2.5" 
+                                                                className="cursor-ns-resize hover:scale-150 transition-transform no-print"
+                                                                title="Tarik untuk geser posisi cabang di tulang utama"
+                                                                onPointerDown={(e) => startDrag(e, 'cause_joint', `joint-${cause.id}`, cat.id, cause.id)}
+                                                            />
+
+                                                            {/* ANAK TULANG SUB-PENYEBAB (GARIS KE KOTAK SUB-CAUSE) */}
+                                                            <line 
+                                                                x1={subOriginX} 
+                                                                y1={subOriginY} 
+                                                                x2={subAnchorX} 
+                                                                y2={subAnchorY} 
+                                                                stroke="#64748B" 
+                                                                strokeWidth="1.8" 
+                                                                strokeDasharray="3 2" 
+                                                                strokeLinecap="round" 
+                                                            />
+                                                            <circle cx={subOriginX} cy={subOriginY} r="3" fill="#64748B" />
+
+                                                            {/* KOTAK SUB-CAUSE (DIGESER BEBAS SECARA TERPISAH TANPA MEMPENGARUHI CAUSE) */}
+                                                            <g 
+                                                                className="cursor-grab active:cursor-grabbing group/sub"
+                                                                onPointerDown={(e) => startDrag(e, 'subcause', `sub-${cause.id}`, cat.id, cause.id)}
+                                                                onDoubleClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setEditingItem({
+                                                                        catId: cat.id,
+                                                                        causeIndex: cIdx,
+                                                                        text: cause.text,
+                                                                        subCause: cause.subCause || ''
+                                                                    });
+                                                                }}
+                                                            >
+                                                                <rect 
+                                                                    x={subBoxX} 
+                                                                    y={subBoxY} 
+                                                                    width={subW} 
+                                                                    height={subH} 
+                                                                    rx="4" 
+                                                                    fill="#F8FAFC" 
+                                                                    stroke="#94A3B8" 
+                                                                    strokeWidth="1.2" 
+                                                                    className="shadow-xs hover:stroke-blue-500 hover:shadow-md transition" 
+                                                                />
+                                                                <path d={`M ${subBoxX} ${subBoxY} L ${subBoxX + 3.5} ${subBoxY} L ${subBoxX + 3.5} ${subBoxY + subH} L ${subBoxX} ${subBoxY + subH} Z`} fill="#64748B" />
+                                                                <text x={subBoxX + 8} y={subBoxY + 11} fill={cat.color} fontSize="8" fontWeight="800" letterSpacing="0.04em">↳ SUB-CAUSE:</text>
+                                                                {subLines.map((sLine, sIdx) => (
+                                                                    <text key={sIdx} x={subBoxX + 8} y={subBoxY + 22 + sIdx * 12} fill="#334155" fontSize="9" fontFamily="sans-serif" fontStyle="italic" className="pointer-events-none">
+                                                                        {sLine}
+                                                                    </text>
+                                                                ))}
+                                                            </g>
+
+                                                            {/* KOTAK CAUSE UTAMA (DIGESER BEBAS SECARA TERPISAH TANPA MENARIK SUB-CAUSE) */}
+                                                            <g 
+                                                                className="cursor-grab active:cursor-grabbing group/cause"
+                                                                onPointerDown={(e) => startDrag(e, 'cause', cause.id, cat.id, cause.id)}
+                                                                onDoubleClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setEditingItem({
+                                                                        catId: cat.id,
+                                                                        causeIndex: cIdx,
+                                                                        text: cause.text,
+                                                                        subCause: cause.subCause || ''
+                                                                    });
+                                                                }}
+                                                            >
+                                                                {isHighlighted && <rect x={causeBoxX-3} y={causeBoxY-3} width={causeW+6} height={causeH+6} rx="8" fill="none" stroke="#FBBF24" strokeWidth="3" className="animate-pulse" />}
+                                                                <rect 
+                                                                    x={causeBoxX} 
+                                                                    y={causeBoxY} 
+                                                                    width={causeW} 
+                                                                    height={causeH} 
+                                                                    rx="5" 
+                                                                    fill={isHighlighted ? '#FEF9C3' : '#ffffff'} 
+                                                                    stroke={isHighlighted ? '#F59E0B' : cat.color} 
+                                                                    strokeWidth="1.8" 
+                                                                    className="shadow-sm hover:stroke-blue-600 hover:shadow-md transition" 
+                                                                />
+                                                                <rect x={causeBoxX} y={causeBoxY} width="4" height={causeH} rx="2" fill={cat.color} />
+                                                                {causeLines.map((line, lIdx) => (
+                                                                    <text key={lIdx} x={causeBoxX + 10} y={causeBoxY + 14 + lIdx * 14} fill="#0f172a" fontSize="10.5" fontFamily="sans-serif" fontWeight="700" className="pointer-events-none">
+                                                                        {line}
+                                                                    </text>
+                                                                ))}
+
+                                                                {/* Titik Resize Kotak Cause */}
+                                                                <path d={`M ${causeBoxX+causeW-10} ${causeBoxY+causeH} L ${causeBoxX+causeW} ${causeBoxY+causeH} L ${causeBoxX+causeW} ${causeBoxY+causeH-10} Z`} fill="#cbd5e1" className="cursor-nwse-resize no-print hover:fill-blue-500" onPointerDown={(e) => startResize(e, cause.id, cat.id, causeW)} />
+                                                                
+                                                                {/* Tombol Hapus Baris Cause */}
+                                                                <g className="opacity-0 hover:opacity-100 transition no-print cursor-pointer" onPointerDown={e => e.stopPropagation()} onClick={e => handleDeleteCause(cat.id, cIdx, e)}>
+                                                                    <rect x={causeBoxX+causeW-18} y={causeBoxY-8} width="16" height="16" rx="8" fill="#ef4444" />
+                                                                    <text x={causeBoxX+causeW-14} y={causeBoxY+4} fill="#fff" fontSize="10" fontWeight="bold">×</text>
+                                                                </g>
+                                                            </g>
+
+                                                        </g>
+                                                    );
+                                                })}
+
+                                                {/* 3. KOTAK KATEGORI (DI UJUNG TULANG KATEGORI) */}
+                                                {(() => {
+                                                    const lines = wrapText(cat.name, 18);
+                                                    const catW = Math.max(120, Math.max(...lines.map(l => l.length)) * 8 + 40);
+                                                    const catH = lines.length * 16 + 16;
+                                                    const cBoxX = actualTipX - catW/2, cBoxY = isTop ? actualTipY - catH - 5 : actualTipY + 5;
+                                                    
+                                                    return (
+                                                        <g className="cursor-grab active:cursor-grabbing" onPointerDown={e => startDrag(e, 'cat', cat.id)}>
+                                                            <rect x={cBoxX} y={cBoxY} width={catW} height={catH} rx="6" fill="#ffffff" stroke={cat.color} strokeWidth="2.5" className="shadow-sm hover:shadow-md transition" />
+                                                            {lines.map((l, i) => <text key={i} x={cBoxX + 12} y={cBoxY + 20 + i*16} fill="#0f172a" fontSize="12" fontWeight="bold" fontFamily="sans-serif" className="pointer-events-none">{l}</text>)}
+                                                            
+                                                            <g className="cursor-pointer hover:opacity-80 no-print" onPointerDown={e=>e.stopPropagation()} onClick={e=>handleAddCause(cat.id, e)}>
+                                                                <circle cx={cBoxX+catW-26} cy={cBoxY+catH/2} r="8" fill="#f1f5f9" stroke="#cbd5e1" /><text x={cBoxX+catW-26} y={cBoxY+catH/2+4} textAnchor="middle" fill="#475569" fontSize="12" fontWeight="bold">+</text>
+                                                            </g>
+                                                            <g className="cursor-pointer hover:opacity-80 no-print" onPointerDown={e=>e.stopPropagation()} onClick={e=>handleDeleteCategory(cat.id, e)}>
+                                                                <circle cx={cBoxX+catW-8} cy={cBoxY+catH/2} r="8" fill="#fee2e2" stroke="#fca5a5" /><text x={cBoxX+catW-8} y={cBoxY+catH/2+3} textAnchor="middle" fill="#ef4444" fontSize="10" fontWeight="bold">×</text>
+                                                            </g>
+                                                        </g>
+                                                    );
+                                                })()}
+                                            </g>
+                                        );
+                                    });
+                                })}
+
+                                {/* KEPALA IKAN (PROBLEM STATEMENT) */}
+                                <g className="cursor-grab active:cursor-grabbing" transform={`translate(${(data.problemOffsetX||0)+(tempOffsets['problem']?.dx||0)}, ${(data.problemOffsetY||0)+(tempOffsets['problem']?.dy||0)})`} onPointerDown={e => startDrag(e, 'problem', 'problem')}>
+                                    <path d={`M ${SPINE_END_X} ${SPINE_Y - 95} C ${SPINE_END_X + 90} ${SPINE_Y - 95}, ${SPINE_END_X + 170} ${SPINE_Y - 55}, ${SPINE_END_X + 220} ${SPINE_Y} C ${SPINE_END_X + 170} ${SPINE_Y + 55}, ${SPINE_END_X + 90} ${SPINE_Y + 95}, ${SPINE_END_X} ${SPINE_Y + 95} Z`} fill="#ffffff" stroke="#2563eb" strokeWidth="2.5" className="drop-shadow-md" />
+                                    <circle cx={SPINE_END_X + 175} cy={SPINE_Y - 35} r="6" fill="#3b82f6" />
+                                    
+                                    <rect x={SPINE_END_X - 5} y={SPINE_Y - 50} width="170" height="100" rx="8" fill="#f8fafc" stroke="#bfdbfe" strokeWidth="1.5" />
+                                    <text x={SPINE_END_X + 10} y={SPINE_Y - 32} fill="#2563eb" fontSize="10" fontWeight="bold" fontFamily="sans-serif" className="pointer-events-none">MASALAH (EFFECT)</text>
+                                    {wrapText(data.problem, 20).slice(0,4).map((line, i) => <text key={i} x={SPINE_END_X + 10} y={SPINE_Y - 12 + i*16} fill="#0f172a" fontSize="12" fontWeight="700" fontFamily="sans-serif" className="pointer-events-none">{line}</text>)}
+                                </g>
+                            </svg>
+                        </div>
+                    </div>
+
+                    {/* ACTION PLAN TABLE & SUMMARY */}
+                    <div className="flex-1 w-full max-w-7xl mx-auto p-4 md:p-8 table-wrapper bg-slate-50 space-y-6">
+                        
+                        {data.conclusion && (
+                            <div className="bg-white border border-blue-200 rounded-xl p-5 shadow-sm flex items-start gap-4">
+                                <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl shrink-0 mt-0.5">
+                                    <FileText className="w-5 h-5" />
+                                </div>
+                                <div className="flex-1">
+                                    <h3 className="text-xs font-bold text-blue-800 uppercase tracking-wider mb-1">Executive Conclusion (Sintesis RCA 6M)</h3>
+                                    <textarea 
+                                        rows="2"
+                                        value={data.conclusion}
+                                        onChange={(e) => setData(prev => ({ ...prev, conclusion: e.target.value }))}
+                                        className="w-full text-sm text-slate-700 bg-transparent outline-none resize-none font-medium leading-relaxed"
+                                        placeholder="Ringkasan eksekutif akar masalah..."
+                                    />
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                            <div className="px-6 py-4 border-b border-slate-200 flex flex-wrap gap-4 justify-between items-center bg-white">
+                                <div>
+                                    <h2 className="text-lg font-bold text-[#005073] uppercase tracking-wide">Corrective Action Plan (CAPA)</h2>
+                                    <p className="text-xs text-slate-500 mt-0.5">Semua data tabel terhubung langsung ke tulang dan anak cabang diagram di atas.</p>
+                                </div>
+                                <button onClick={() => { if(data.categories.length > 0) handleAddCause(data.categories[0].id); }} className="bg-[#059669] hover:bg-[#047857] text-white px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 shadow-sm no-print">
+                                    <Plus className="w-4 h-4" /> Tambah Baris Manual
+                                </button>
+                            </div>
+                            
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm text-left border-collapse">
+                                    <thead className="bg-[#005073] text-white">
+                                        <tr>
+                                            <th className="border-b border-slate-300 p-3 font-semibold w-40">Category</th>
+                                            <th className="border-b border-slate-300 p-3 font-semibold w-64">Main Cause (Tulang Cabang)</th>
+                                            <th className="border-b border-slate-300 p-3 font-semibold min-w-[280px]">Sub Cause (Anak Tulang)</th>
+                                            <th className="border-b border-slate-300 p-3 font-semibold min-w-[280px]">Corrective Action Plan</th>
+                                            <th className="border-b border-slate-300 p-3 font-semibold w-28">PIC</th>
+                                            <th className="border-b border-slate-300 p-3 font-semibold w-28">Due Date</th>
+                                            <th className="border-b border-slate-300 p-3 font-semibold w-12 text-center no-print">Act</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-200 bg-white">
+                                        {data.categories.length === 0 && (
+                                            <tr><td colSpan="7" className="p-6 text-center text-slate-500">Belum ada data. Silakan gunakan AI Generate atau pilih preset 6M.</td></tr>
+                                        )}
+                                        {data.categories.map((cat) => (
+                                            cat.causes.map((cause, idx) => {
+                                                const isHighlighted = highlightedCause === cause.id;
+                                                return (
+                                                    <tr 
+                                                        key={cause.id} 
+                                                        onClick={() => setHighlightedCause(cause.id)}
+                                                        className={`transition-colors cursor-pointer ${isHighlighted ? 'bg-yellow-50/80 ring-1 ring-yellow-400 inset-0' : 'hover:bg-slate-50'}`}
+                                                    >
+                                                        {idx === 0 && (
+                                                            <td rowSpan={cat.causes.length} className="border-r border-slate-200 p-3 align-top bg-slate-50/50">
+                                                                <input 
+                                                                    value={cat.name} 
+                                                                    onChange={(e) => {
+                                                                        const val = e.target.value;
+                                                                        setData(prev => ({
+                                                                            ...prev,
+                                                                            categories: prev.categories.map(c => c.id === cat.id ? { ...c, name: val } : c)
+                                                                        }));
+                                                                    }} 
+                                                                    className="w-full bg-transparent font-bold text-slate-700 outline-none focus:border-b border-blue-500" 
+                                                                    title="Edit Nama Kategori"
+                                                                />
+                                                            </td>
+                                                        )}
+                                                        <td className="p-2 border-r border-slate-200 align-top">
+                                                            <textarea 
+                                                                rows="3"
+                                                                value={cause.text} 
+                                                                onChange={(e) => handleTableEdit(cat.id, cause.id, 'text', e.target.value)} 
+                                                                className={`w-full bg-transparent outline-none resize-none p-1 rounded font-medium ${isHighlighted ? 'text-yellow-900' : 'text-slate-800'}`} 
+                                                                placeholder="Tulis Akar Penyebab..."
+                                                            />
+                                                        </td>
+                                                        <td className="p-2 border-r border-slate-200 align-top">
+                                                            <textarea 
+                                                                rows="4" 
+                                                                value={cause.subCause} 
+                                                                onChange={(e) => handleTableEdit(cat.id, cause.id, 'subCause', e.target.value)} 
+                                                                className="w-full bg-transparent outline-none resize-y p-1 text-slate-600 leading-relaxed text-xs" 
+                                                                placeholder="Mekanisme detail (langsung muncul di anak tulang)..." 
+                                                            />
+                                                        </td>
+                                                        <td className="p-2 border-r border-slate-200 align-top">
+                                                            <textarea 
+                                                                rows="4" 
+                                                                value={cause.actionPlan} 
+                                                                onChange={(e) => handleTableEdit(cat.id, cause.id, 'actionPlan', e.target.value)} 
+                                                                className="w-full bg-transparent outline-none resize-y p-1 text-slate-700 leading-relaxed text-xs" 
+                                                                placeholder="Rencana tindakan perbaikan terukur..." 
+                                                            />
+                                                        </td>
+                                                        <td className="p-2 border-r border-slate-200 align-top">
+                                                            <input type="text" value={cause.pic} onChange={(e) => handleTableEdit(cat.id, cause.id, 'pic', e.target.value)} className="w-full bg-transparent outline-none p-1 text-slate-600 text-xs" placeholder="Nama PIC..." />
+                                                        </td>
+                                                        <td className="p-2 border-r border-slate-200 align-top">
+                                                            <input type="date" value={cause.dueDate} onChange={(e) => handleTableEdit(cat.id, cause.id, 'dueDate', e.target.value)} className="w-full bg-transparent outline-none p-1 text-slate-600 text-xs" />
+                                                        </td>
+                                                        <td className="p-2 text-center align-top no-print">
+                                                            <button onClick={(e) => handleDeleteCause(cat.id, idx, e)} className="text-red-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 transition" title="Hapus Baris">
+                                                                <Trash2 className="w-4 h-4" />
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* MODAL EDIT CEPAT DARI DIAGRAM */}
+                    {editingItem && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 no-print">
+                            <div className="bg-white border border-slate-200 w-full max-w-md rounded-2xl p-6 shadow-2xl space-y-4">
+                                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                                    <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                                        <Edit2 className="w-4 h-4 text-blue-600" />
+                                        Edit Penyebab & Sub-Cause
+                                    </h3>
+                                    <button onClick={() => setEditingItem(null)} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+                                        <X className="w-4 h-4" />
+                                    </button>
+                                </div>
+                                <div className="space-y-3">
+                                    <div>
+                                        <label className="text-xs text-slate-500 font-semibold block mb-1">Akar Masalah Utama (Tulang Cabang):</label>
+                                        <input 
+                                            type="text" 
+                                            id="quick-edit-cause"
+                                            defaultValue={editingItem.text}
+                                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs text-slate-500 font-semibold block mb-1">Sub-Cause (Anak Tulang):</label>
+                                        <textarea 
+                                            rows="3" 
+                                            id="quick-edit-subcause"
+                                            defaultValue={editingItem.subCause}
+                                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                            placeholder="Detail lanjutan akar masalah..."
+                                        />
+                                    </div>
+                                </div>
+                                <div className="flex justify-end space-x-2 pt-2">
+                                    <button onClick={() => setEditingItem(null)} className="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition">Batal</button>
+                                    <button 
+                                        onClick={() => {
+                                            const cInput = document.getElementById('quick-edit-cause');
+                                            const sInput = document.getElementById('quick-edit-subcause');
+                                            if (cInput && sInput) saveQuickEdit(cInput.value, sInput.value);
+                                        }} 
+                                        className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white transition flex items-center space-x-1"
+                                    >
+                                        <Check className="w-3.5 h-3.5" />
+                                        <span>Simpan</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* MODAL AI */}
+                    {showAIModal && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 no-print">
+                            <div className="bg-white border border-slate-200 w-full max-w-lg rounded-2xl p-6 shadow-2xl space-y-5">
+                                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                                    <h3 className="text-base font-bold text-slate-800 flex items-center gap-2"><Wand2 className="w-5 h-5 text-indigo-500" /> AI Deep RCA Generator (6M Penuh)</h3>
+                                    <button onClick={() => !isGenerating && setShowAIModal(false)} className="text-slate-400 hover:text-slate-700 bg-slate-100 p-1.5 rounded-lg"><X className="w-4 h-4" /></button>
+                                </div>
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="text-xs text-slate-500 block mb-1.5 font-bold">Model AI:</label>
+                                        <div className="relative">
+                                            <select value={aiModel} onChange={(e) => setAiModel(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-3 pr-8 py-2 text-sm text-slate-800 outline-none focus:border-indigo-500 appearance-none cursor-pointer">
+                                                <option value="gemini-3.1-flash-lite">3.1 Flash-Lite (Cepat & Ringan)</option>
+                                                <option value="gemini-1.5-flash">1.5 Flash (Standar)</option>
+                                                <option value="gemini-1.5-pro">1.5 Pro (Penalaran Kompleks)</option>
+                                            </select>
+                                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-400"><ChevronDown className="w-4 h-4" /></div>
+                                        </div>
+                                    </div>
+                                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-800">
+                                        <p className="font-semibold mb-1">Target 6 Kategori Penuh (6M):</p>
+                                        <div className="flex flex-wrap gap-1">
+                                            {PRESETS['6M'].categories.map(c => (
+                                                <span key={c.id} className="bg-white border border-blue-200 px-2 py-0.5 rounded text-[11px] font-medium text-slate-700">
+                                                    {c.name}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="text-xs text-slate-500 block mb-1.5 font-bold">Deskripsi Masalah / Laporan Insiden:</label>
+                                        <textarea rows="5" value={aiPrompt} onChange={(e) => setAiPrompt(e.target.value)} placeholder="Ketik atau tempel laporan insiden secara lengkap di sini. AI akan menghasilkan 6 kategori 6M lengkap dengan tulang Cause dan anak tulang Sub-Cause..." className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" />
+                                    </div>
+                                    {aiError && <div className="text-xs text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-lg font-medium">{aiError}</div>}
+                                </div>
+                                <div className="flex justify-end space-x-3 pt-2">
+                                    <button onClick={() => setShowAIModal(false)} disabled={isGenerating} className="px-4 py-2 rounded-lg text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition disabled:opacity-50">Batal</button>
+                                    <button onClick={handleAIGenerate} disabled={isGenerating || !aiPrompt.trim()} className="px-5 py-2 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white transition flex items-center space-x-2 disabled:opacity-50">
+                                        {isGenerating ? <><Loader2 className="w-4 h-4 animate-spin" /><span>Menganalisis 6M...</span></> : <><Bot className="w-4 h-4" /><span>Generate 6M Lengkap</span></>}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        const root = createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
