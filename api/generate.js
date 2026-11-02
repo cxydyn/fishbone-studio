@@ -15,7 +15,29 @@ export default async function handler(req, res) {
   }
 
   try {
-    const systemPrompt = `Buat analisis Fishbone untuk masalah: "${prompt}". Kembalikan HANYA format JSON valid tanpa penjelasan, tanpa format markdown.\nFormat:\n{\n  "name": "Hasil AI",\n  "problem": "${prompt}",\n  "categories": [\n    {\n      "name": "Kategori",\n      "causes": ["Penyebab 1", "Penyebab 2"]\n    }\n  ]\n}`;
+    const systemPrompt = `Anda adalah konsultan analisis akar masalah (Root Cause Analysis). Analisis masalah berikut: "${prompt}".
+
+Buat diagram Fishbone beserta draft Corrective Action Plan. Setiap penyebab (cause) wajib dilengkapi dengan "subCause" (detail/akar masalah lebih dalam) dan "actionPlan" (rencana tindakan korektif awal yang dapat dirasionalisasi oleh manusia).
+
+Kembalikan HANYA format JSON valid tanpa format markdown, tanpa prefix/suffix.
+Format JSON yang diharapkan:
+{
+  "name": "Analisis AI",
+  "problem": "${prompt}",
+  "categories": [
+    {
+      "name": "Nama Kategori (misal: Man, Machine, Method, Material, dll)",
+      "causes": [
+        {
+          "text": "Penyebab utama tingkat 1 yang ringkas (untuk ditampilkan di tulang diagram)",
+          "subCause": "Detail penjabaran atau akar masalah spesifik tingkat lanjutan",
+          "actionPlan": "Draft rekomendasi tindakan perbaikan konkret dan terukur"
+        }
+      ]
+    }
+  ]
+}
+Catatan: Berikan 4 hingga 6 kategori relevan, dan 2 hingga 3 penyebab lengkap per kategori.`;
 
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,

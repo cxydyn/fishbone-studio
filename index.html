@@ -39,18 +39,50 @@
                 name: '6M (Manufaktur & Rekayasa)',
                 problem: 'Tingkat Cacat Produk Meningkat 15%',
                 categories: [
-                    { id: 'cat-1', name: 'Man (Tenaga Kerja)', color: '#2563EB', causes: ['Kurang pelatihan berkala', 'Operator kelelahan di shift 3'] },
-                    { id: 'cat-2', name: 'Machine (Mesin)', color: '#059669', causes: ['Sensor panas aus', 'Kalibrasi terlambat 2 minggu'] },
-                    { id: 'cat-3', name: 'Method (Metode)', color: '#D97706', causes: ['SOP pencampuran usang', 'Inspeksi QC tidak konsisten'] },
-                    { id: 'cat-4', name: 'Material (Bahan Baku)', color: '#DB2777', causes: ['Kadar air bahan > 5%', 'Batch supplier berbeda kualitas'] }
+                    { 
+                        id: 'cat-1', 
+                        name: 'Man (Tenaga Kerja)', 
+                        color: '#2563EB', 
+                        causes: [
+                            { text: 'Kurang pelatihan berkala', subCause: 'Belum ada jadwal refresher training SOP baru', actionPlan: 'Susun matriks kompetensi dan jadwal pelatihan bulanan' },
+                            { text: 'Operator kelelahan di shift 3', subCause: 'Jadwal lembur berturut-turut tanpa jeda cukup', actionPlan: 'Batasi maksimal lembur 2 hari berturut-turut' }
+                        ] 
+                    },
+                    { 
+                        id: 'cat-2', 
+                        name: 'Machine (Mesin)', 
+                        color: '#059669', 
+                        causes: [
+                            { text: 'Sensor panas aus', subCause: 'Melewati batas siklus penggantian berkala', actionPlan: 'Ganti sensor dan update log preventive maintenance' },
+                            { text: 'Kalibrasi terlambat 2 minggu', subCause: 'Jadwal teknisi kalibrasi eksternal bentrok', actionPlan: 'Buat kontrak SLA kalibrasi terjadwal' }
+                        ] 
+                    },
+                    { 
+                        id: 'cat-3', 
+                        name: 'Method (Metode)', 
+                        color: '#D97706', 
+                        causes: [
+                            { text: 'SOP pencampuran usang', subCause: 'Versi revisi mesin baru belum dimasukkan ke lembar kerja', actionPlan: 'Review dan perbarui Work Instruction bersama tim engineering' },
+                            { text: 'Inspeksi QC tidak konsisten', subCause: 'Metode visual check belum memiliki batas toleransi visual standar', actionPlan: 'Buat defect sample catalog sebagai acuan batas toleransi' }
+                        ] 
+                    },
+                    { 
+                        id: 'cat-4', 
+                        name: 'Material (Bahan Baku)', 
+                        color: '#DB2777', 
+                        causes: [
+                            { text: 'Kadar air bahan > 5%', subCause: 'Penyimpanan di gudang dekat area ventilasi lembap', actionPlan: 'Pasang dehumidifier dan palet pelindung kelembapan' },
+                            { text: 'Batch supplier berbeda kualitas', subCause: 'Standar penerimaan bahan masuk belum menyertakan uji lab cepat', actionPlan: 'Terapkan rapid test moisture content di area inbound' }
+                        ] 
+                    }
                 ]
             },
             BLANK: {
                 name: 'Template Kosong (Kustom)',
                 problem: 'Tuliskan Masalah Utama di Sini',
                 categories: [
-                    { id: 'cat-1', name: 'Kategori 1', color: '#2563EB', causes: ['Penyebab A'] },
-                    { id: 'cat-2', name: 'Kategori 2', color: '#059669', causes: ['Penyebab B'] }
+                    { id: 'cat-1', name: 'Kategori 1', color: '#2563EB', causes: [{ text: 'Penyebab A', subCause: '', actionPlan: '' }] },
+                    { id: 'cat-2', name: 'Kategori 2', color: '#059669', causes: [{ text: 'Penyebab B', subCause: '', actionPlan: '' }] }
                 ]
             }
         };
@@ -81,12 +113,18 @@
                 categories: preset.categories.map((c, i) => ({
                     ...c,
                     offsetX: 0, offsetY: 0, boneOffsetX: 0, boneOffsetY: 0,
-                    causes: c.causes.map((causeStr, j) => ({
-                        id: `cause-${i}-${j}-${Date.now()}`,
-                        text: typeof causeStr === 'string' ? causeStr : causeStr.text,
-                        subCause: '', actionPlan: '', pic: '', dueDate: '',
-                        offsetX: 0, offsetY: 0, customWidth: null
-                    }))
+                    causes: c.causes.map((item, j) => {
+                        const isObj = typeof item === 'object' && item !== null;
+                        return {
+                            id: `cause-${i}-${j}-${Date.now()}`,
+                            text: isObj ? item.text : item,
+                            subCause: isObj ? (item.subCause || '') : '',
+                            actionPlan: isObj ? (item.actionPlan || '') : '',
+                            pic: isObj ? (item.pic || '') : '',
+                            dueDate: isObj ? (item.dueDate || '') : '',
+                            offsetX: 0, offsetY: 0, customWidth: null
+                        };
+                    })
                 }))
             };
         };
@@ -122,7 +160,7 @@
         function App() {
             const [data, setData] = useState(() => {
                 try {
-                    const saved = localStorage.getItem('fishbone_diagram_data_v4');
+                    const saved = localStorage.getItem('fishbone_diagram_data_v5');
                     if (saved) return migrateData(JSON.parse(saved));
                 } catch (e) {}
                 return formatPresetData(PRESETS['6M']);
@@ -141,7 +179,7 @@
             const [showPresetsMenu, setShowPresetsMenu] = useState(false);
             const [isExporting, setIsExporting] = useState(false);
 
-            // AI State (Tanpa state input API Key di client)
+            // AI State
             const [showAIModal, setShowAIModal] = useState(false);
             const [aiPrompt, setAiPrompt] = useState('');
             const [aiModel, setAiModel] = useState(() => localStorage.getItem('gemini_model') || 'gemini-3.1-flash-lite');
@@ -152,7 +190,7 @@
             const svgRef = useRef(null);
 
             useEffect(() => {
-                try { localStorage.setItem('fishbone_diagram_data_v4', JSON.stringify(data)); } catch (e) {}
+                try { localStorage.setItem('fishbone_diagram_data_v5', JSON.stringify(data)); } catch (e) {}
             }, [data]);
 
             const handlePointerDown = (e) => {
@@ -337,18 +375,22 @@
                         parsedData = JSON.parse(resJson.result.replace(/```json/gi, '').replace(/```/gi, '').trim());
                     }
 
+                    // Sinkronkan data terstruktur dari AI
                     const mappedCategories = (parsedData.categories || []).map((cat, i) => ({
                         id: `cat-ai-${Date.now()}-${i}`,
                         name: cat.name || `Kategori ${i + 1}`,
                         color: COLOR_PALETTE[i % COLOR_PALETTE.length],
-                        causes: (cat.causes || []).map((c, j) => ({
-                            id: `c-${Date.now()}-${j}`,
-                            text: c,
-                            subCause: '',
-                            actionPlan: '',
-                            pic: '',
-                            dueDate: ''
-                        }))
+                        causes: (cat.causes || []).map((item, j) => {
+                            const isObj = typeof item === 'object' && item !== null;
+                            return {
+                                id: `c-${Date.now()}-${i}-${j}`,
+                                text: isObj ? (item.text || 'Penyebab') : item,
+                                subCause: isObj ? (item.subCause || '') : '',
+                                actionPlan: isObj ? (item.actionPlan || '') : '',
+                                pic: '',
+                                dueDate: ''
+                            };
+                        })
                     }));
 
                     setData(formatPresetData({
@@ -689,12 +731,12 @@
                         </div>
                     </div>
 
-                    {/* MODAL AI (Bersih tanpa kolom input API Key) */}
+                    {/* MODAL AI */}
                     {showAIModal && (
                         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 no-print">
                             <div className="bg-white border border-slate-200 w-full max-w-lg rounded-2xl p-6 shadow-2xl space-y-5">
                                 <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                                    <h3 className="text-base font-bold text-slate-800 flex items-center gap-2"><Wand2 className="w-5 h-5 text-indigo-500" /> AI Generate Fishbone</h3>
+                                    <h3 className="text-base font-bold text-slate-800 flex items-center gap-2"><Wand2 className="w-5 h-5 text-indigo-500" /> AI Generate Fishbone & Plan</h3>
                                     <button onClick={() => !isGenerating && setShowAIModal(false)} className="text-slate-400 hover:text-slate-700 bg-slate-100 p-1.5 rounded-lg"><X className="w-4 h-4" /></button>
                                 </div>
                                 <div className="space-y-4">
@@ -711,7 +753,7 @@
                                     </div>
                                     <div>
                                         <label className="text-xs text-slate-500 block mb-1.5 font-bold">Deskripsi Masalah Utama:</label>
-                                        <textarea rows="4" value={aiPrompt} onChange={(e) => setAiPrompt(e.target.value)} placeholder="Contoh: Aplikasi sering down saat promo flash sale..." className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" />
+                                        <textarea rows="4" value={aiPrompt} onChange={(e) => setAiPrompt(e.target.value)} placeholder="Contoh: Terjadi keterlambatan pengiriman produk sebesar 25% pada kuartal ini..." className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" />
                                     </div>
                                     {aiError && <div className="text-xs text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-lg font-medium">{aiError}</div>}
                                 </div>
