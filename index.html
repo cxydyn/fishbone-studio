@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fishbone Studio - Complete RCA Suite</title>
+    <title>Fishbone Studio - Live RCA Collaboration</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -35,12 +35,11 @@
             ZoomIn, ZoomOut, RotateCcw, Plus, Download, Printer,
             Sparkles, Info, Layers, ChevronDown, Edit2, Check, X,
             HelpCircle, Eye, EyeOff, Bot, Wand2, Loader2, Trash2, FileText, Move,
-            Network, ListEnd, AlignEndHorizontal, Cloud, CloudOff, Users, Share2, Globe
+            Network, ListEnd, AlignEndHorizontal, Cloud, CloudOff, Users, Share2, Globe, LogOut
         } from 'lucide-react';
 
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        // DIUBAH: Menambahkan fungsi setDoc
         import { getFirestore, collection, doc, getDocs, addDoc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Firebase Config Setup
@@ -70,43 +69,37 @@
                     { 
                         id: 'cat-1', name: 'Man (Tenaga Kerja)', color: '#2563EB', 
                         causes: [
-                            { text: 'Kurang pelatihan berkala', subCause: 'Operator shift malam belum lulus sertifikasi mesin presisi', actionPlan: 'Wajibkan sertifikasi ulang per kuartal dan buat matriks keahlian operator.' },
-                            { text: 'Kelelahan operator shift 3', subCause: 'Lembur berturut-turut melebihi batas 14 jam per minggu', actionPlan: 'Batasi lembur maksimal 2 hari berturut-turut.' }
+                            { text: 'Kurang pelatihan berkala', subCause: 'Operator shift malam belum lulus sertifikasi mesin presisi', actionPlan: 'Wajibkan sertifikasi ulang per kuartal dan buat matriks keahlian operator.' }
                         ] 
                     },
                     { 
                         id: 'cat-2', name: 'Machine (Mesin)', color: '#059669', 
                         causes: [
-                            { text: 'Presisi hidrolik puncher turun', subCause: 'Seal silinder hidrolik aus akibat suhu oli melebihi 65°C', actionPlan: 'Ganti seal tahan panas dan pasang modul chiller pendingin.' },
-                            { text: 'Keausan guide pin die block', subCause: 'Clearance guide pin melebihi batas toleransi 0.08 mm', actionPlan: 'Ganti guide pin baru dan lakukan flushing lubrikasi.' }
+                            { text: 'Presisi hidrolik puncher turun', subCause: 'Seal silinder hidrolik aus akibat suhu oli melebihi 65°C', actionPlan: 'Ganti seal tahan panas dan pasang modul chiller pendingin.' }
                         ] 
                     },
                     { 
                         id: 'cat-3', name: 'Method (Metode)', color: '#D97706', 
                         causes: [
-                            { text: 'SOP pemeliharaan usang', subCause: 'Parameter inspeksi cetakan masih mengacu pada mesin tipe lama', actionPlan: 'Revisi Work Instruction dan buat checklist digital.' },
-                            { text: 'Prosedur setup tidak standar', subCause: 'Teknisi mengencangkan clamping tanpa kunci torsi', actionPlan: 'Wajibkan kunci torsi terkalibrasi dan pasang visual board.' }
+                            { text: 'SOP pemeliharaan usang', subCause: 'Parameter inspeksi cetakan masih mengacu pada mesin tipe lama', actionPlan: 'Revisi Work Instruction dan buat checklist digital.' }
                         ] 
                     },
                     { 
                         id: 'cat-4', name: 'Material (Bahan Baku)', color: '#DB2777', 
                         causes: [
-                            { text: 'Ketebalan pelat lewat toleransi', subCause: 'Deviasi bahan supplier ±0.15 mm dari ambang 0.05 mm', actionPlan: 'Perketat kriteria penerimaan material dan terbitkan CAR.' },
-                            { text: 'Residu anti-karat berlebih', subCause: 'Oli pelindung terlalu kental menjebak gram sisa potong', actionPlan: 'Standarkan viskositas oli dan pasang air blow cleaner.' }
+                            { text: 'Ketebalan pelat lewat toleransi', subCause: 'Deviasi bahan supplier ±0.15 mm dari ambang 0.05 mm', actionPlan: 'Perketat kriteria penerimaan material dan terbitkan CAR.' }
                         ] 
                     },
                     { 
                         id: 'cat-5', name: 'Measurement (Pengukuran)', color: '#7C3AED', 
                         causes: [
-                            { text: 'Sensor tidak terkalibrasi', subCause: 'Sensor ultrasonik telat kalibrasi 45 hari dan tertutup kabut oli', actionPlan: 'Kalibrasi ulang sensor dan bersihkan lensa optik harian.' },
-                            { text: 'Metode sampling QC minim', subCause: 'Pemeriksaan hanya pada 5 part awal setiap pergantian coil', actionPlan: 'Terapkan SPC sampling berkala per 500 stroke.' }
+                            { text: 'Sensor tidak terkalibrasi', subCause: 'Sensor ultrasonik telat kalibrasi 45 hari dan tertutup kabut oli', actionPlan: 'Kalibrasi ulang sensor dan bersihkan lensa optik harian.' }
                         ] 
                     },
                     { 
                         id: 'cat-6', name: 'Milieu / Environment (Lingkungan)', color: '#0891B2', 
                         causes: [
-                            { text: 'Kelembapan ruang produksi tinggi', subCause: 'Kelembapan 85% memicu bintik karat mikro pada cetakan cadangan', actionPlan: 'Pasang dehumidifier dan perbaiki ventilasi aktif.' },
-                            { text: 'Akumulasi debu abrasif', subCause: 'Partisi area gerinda dan stamping presisi hanya tirai plastik', actionPlan: 'Bangun partisi panel sandwich kedap debu.' }
+                            { text: 'Kelembapan ruang produksi tinggi', subCause: 'Kelembapan 85% memicu bintik karat mikro pada cetakan cadangan', actionPlan: 'Pasang dehumidifier dan perbaiki ventilasi aktif.' }
                         ] 
                     }
                 ]
@@ -164,61 +157,26 @@
         const SPINE_END_X = 1320;
 
         function App() {
+            // --- LOBBY & PRESENCE STATE ---
+            const [userName, setUserName] = useState(() => localStorage.getItem('rca_username') || '');
+            const [inRoom, setInRoom] = useState(false);
+            const [activeRoomId, setActiveRoomId] = useState(null);
+            const [activeRoomName, setActiveRoomName] = useState('');
+            const [lobbyRooms, setLobbyRooms] = useState([]);
+            const [participants, setParticipants] = useState([]);
+            
+            // New Room Form
+            const [showNewRoomForm, setShowNewRoomForm] = useState(false);
+            const [newRoomName, setNewRoomName] = useState('');
+            const [newRoomProblem, setNewRoomProblem] = useState('');
+
             // --- TABS STATE ---
             const [activeTab, setActiveTab] = useState('fishbone'); 
 
-            // --- FISHBONE STATE ---
-            const [data, setData] = useState(() => {
-                try {
-                    const saved = localStorage.getItem('rca_fishbone_data');
-                    if (saved) {
-                        const parsed = JSON.parse(saved);
-                        if (parsed.categories && parsed.categories.length >= 6) return parsed;
-                    }
-                } catch (e) {}
-                return formatPresetData(PRESETS['6M']);
-            });
-
-            // --- 5 WHYS STATE ---
-            const [fiveWhys, setFiveWhys] = useState(() => {
-                try {
-                    const saved = localStorage.getItem('rca_5whys_data');
-                    if (saved) return JSON.parse(saved);
-                } catch (e) {}
-                return {
-                    problem: "Mesin Pompa Sentrifugal Berhenti Beroperasi Tiba-tiba",
-                    whys: [
-                        "Why 1: Motor pompa mengalami overload dan relay trip.",
-                        "Why 2: Arus listrik ke motor melebihi batas karena putaran poros tersendat.",
-                        "Why 3: Bearing pada poros utama pompa macet/rusak.",
-                        "Why 4: Tidak ada pelumasan yang cukup pada bearing tersebut.",
-                        "Why 5: Jadwal pelumasan preventif bulanan terlewat."
-                    ],
-                    rootCause: "Sistem penjadwalan maintenance masih manual sehingga rawan terlewat oleh teknisi.",
-                    actionPlan: "Implementasikan CMMS dengan notifikasi alarm otomatis."
-                };
-            });
-
-            // --- FAULT TREE (FTA) STATE ---
-            const [ftaData, setFtaData] = useState(() => {
-                try {
-                    const saved = localStorage.getItem('rca_fta_data');
-                    if (saved) return JSON.parse(saved);
-                } catch (e) {}
-                return {
-                    id: 'root', type: 'top', text: 'Sistem Pompa Air Padam', gate: 'OR',
-                    children: [
-                        { id: 'c1', type: 'basic', text: 'Suplai Listrik PLN Mati' },
-                        { 
-                            id: 'c2', type: 'intermediate', text: 'Genset Gagal Backup', gate: 'AND',
-                            children: [
-                                { id: 'c2a', type: 'basic', text: 'Aki Genset Soak' },
-                                { id: 'c2b', type: 'basic', text: 'BBM Genset Habis' }
-                            ]
-                        }
-                    ]
-                };
-            });
+            // --- DATA STATE ---
+            const [data, setData] = useState(() => formatPresetData(PRESETS['6M']));
+            const [fiveWhys, setFiveWhys] = useState({ problem: "Masalah...", whys: ["Why 1..."], rootCause: "", actionPlan: "" });
+            const [ftaData, setFtaData] = useState({ id: 'root', type: 'top', text: 'Top Event', gate: 'OR', children: [] });
 
             const [zoom, setZoom] = useState(1);
             const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -232,18 +190,13 @@
             const [isExporting, setIsExporting] = useState(false);
             const [editingItem, setEditingItem] = useState(null);
 
-            // AI State
             const [showAIModal, setShowAIModal] = useState(false);
             const [aiPrompt, setAiPrompt] = useState('');
             const [aiModel, setAiModel] = useState(() => localStorage.getItem('gemini_model') || 'gemini-3.1-flash-lite');
             const [isGenerating, setIsGenerating] = useState(false);
             const [aiError, setAiError] = useState('');
 
-            // --- FIREBASE CLOUD SYNC STATE ---
             const [user, setUser] = useState(null);
-            const [activeDoc, setActiveDoc] = useState(null);
-            const [archives, setArchives] = useState([]);
-            const [showArchives, setShowArchives] = useState(false);
             const [toastMsg, setToastMsg] = useState('');
             const isRemoteUpdate = useRef(false);
 
@@ -252,10 +205,14 @@
             const whysRef = useRef(null);
             const ftaRef = useRef(null);
 
+            const showToast = (msg) => {
+                setToastMsg(msg);
+                setTimeout(() => setToastMsg(''), 3000);
+            };
+
             // Inisialisasi Autentikasi Firebase
             useEffect(() => {
                 if (!auth) return;
-                
                 const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
                     if (currentUser) {
                         setUser(currentUser);
@@ -266,31 +223,73 @@
                         });
                     }
                 });
-
                 return () => unsubscribe();
             }, []);
 
-            // DIUBAH: Cek URL untuk Session Tertentu, Jika Tidak Ada Otomatis ke Ruang Global
+            // Listener Daftar Ruangan (Untuk Lobby)
             useEffect(() => {
-                if (!user || !db) return;
+                if (!user || !db || inRoom) return;
+                const collRef = collection(db, 'artifacts', appId, 'public', 'data', 'rca_archives');
+                const unsub = onSnapshot(collRef, (snapshot) => {
+                    const rooms = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a,b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+                    setLobbyRooms(rooms);
+                });
+                return () => unsub();
+            }, [user, inRoom]);
+
+            // Cek URL saat pertama kali load (untuk langsung masuk jika ada nama)
+            useEffect(() => {
                 const urlParams = new URLSearchParams(window.location.search);
                 const sessionId = urlParams.get('session');
-                
-                if (sessionId) {
-                    setActiveDoc({ id: sessionId });
-                } else {
-                    // OTOMATIS: Semua orang yang buka web tanpa link khusus masuk ke sini!
-                    setActiveDoc({ id: 'global-live-workspace' });
+                if (sessionId && userName && user) {
+                    joinRoom(sessionId, "Ruang Kolaborasi");
                 }
-            }, [user, db]);
+            }, [user]); // Only run when user is authenticated
 
-            // Listener Sinkronisasi Real-Time (Menerima Data)
+            // --- LOGIKA PRESENCE & HEARTBEAT ---
             useEffect(() => {
-                if (!user || !activeDoc || !db) return;
-                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'rca_archives', activeDoc.id);
+                if (!inRoom || !activeRoomId || !user || !userName) return;
+
+                const presenceRef = doc(db, 'artifacts', appId, 'public', 'data', 'rca_archives', activeRoomId, 'presence', user.uid);
+                
+                const ping = async () => {
+                    try { await setDoc(presenceRef, { name: userName, lastActive: Date.now() }, { merge: true }); } 
+                    catch(e) { console.error("Presence ping failed", e); }
+                };
+
+                ping(); // Initial ping
+                const interval = setInterval(ping, 10000); // Ping every 10 seconds
+
+                // Listener untuk melihat siapa saja yang online
+                const presenceCollRef = collection(db, 'artifacts', appId, 'public', 'data', 'rca_archives', activeRoomId, 'presence');
+                const unsub = onSnapshot(presenceCollRef, (snap) => {
+                    const now = Date.now();
+                    const activeUsers = [];
+                    snap.forEach(d => {
+                        const data = d.data();
+                        // Filter out users who haven't pinged in 25 seconds
+                        if (now - data.lastActive < 25000) {
+                            activeUsers.push({ uid: d.id, name: data.name });
+                        }
+                    });
+                    setParticipants(activeUsers);
+                });
+
+                return () => {
+                    clearInterval(interval);
+                    unsub();
+                    deleteDoc(presenceRef).catch(()=>{}); // Try to delete on unmount/leave
+                };
+            }, [inRoom, activeRoomId, user, userName]);
+
+            // Listener Sinkronisasi Data Konten Ruangan
+            useEffect(() => {
+                if (!user || !activeRoomId || !inRoom) return;
+                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'rca_archives', activeRoomId);
                 const unsub = onSnapshot(docRef, (snap) => {
                     if (snap.exists()) {
                         const docData = snap.data();
+                        setActiveRoomName(docData.name);
                         isRemoteUpdate.current = true; 
                         try {
                             const parsed = JSON.parse(docData.payload);
@@ -298,14 +297,18 @@
                             if (parsed.fiveWhys) setFiveWhys(parsed.fiveWhys);
                             if (parsed.ftaData) setFtaData(parsed.ftaData);
                         } catch(e) { console.error("Parse error", e); }
+                    } else {
+                        // Room deleted
+                        leaveRoom();
+                        showToast("Ruangan telah dihapus.");
                     }
                 }, (err) => console.error(err));
                 return () => unsub();
-            }, [user, activeDoc]);
+            }, [user, activeRoomId, inRoom]);
 
-            // Sync Otomatis Lokal ke Cloud (Mengirim Data)
+            // Sync Otomatis Lokal ke Cloud (Debounced)
             useEffect(() => {
-                if (!user || !activeDoc || !db) return;
+                if (!user || !activeRoomId || !inRoom) return;
                 if (isRemoteUpdate.current) {
                     isRemoteUpdate.current = false;
                     return;
@@ -313,128 +316,91 @@
                 const save = async () => {
                     const payload = JSON.stringify({ fishbone: data, fiveWhys, ftaData });
                     try {
-                        const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'rca_archives', activeDoc.id);
-                        // DIUBAH: Pakai setDoc + merge agar Ruang Global otomatis terbuat jika belum ada
+                        const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'rca_archives', activeRoomId);
                         await setDoc(docRef, { 
-                            name: activeDoc.id === 'global-live-workspace' ? '🌐 Ruang Kerja Global (Publik)' : (data.name || 'Proyek Kolaborasi'),
+                            name: activeRoomName || 'Ruang RCA',
                             problem: data.problem,
                             payload, 
                             updatedAt: new Date().toISOString() 
                         }, { merge: true });
                     } catch (e) { console.error("Sync error", e); }
                 };
-                // Debounce cepat (400ms) untuk real-time feel
                 const timeoutId = setTimeout(save, 400);
                 return () => clearTimeout(timeoutId);
-            }, [data, fiveWhys, ftaData, activeDoc, user]);
+            }, [data, fiveWhys, ftaData, activeRoomId, inRoom, user, activeRoomName]);
 
-            // Ambil Daftar Arsip (Hanya untuk dokumen yang BUKAN global)
-            useEffect(() => {
-                if (!user || !db || !showArchives) return;
-                const fetchArchives = async () => {
-                    try {
-                        const collRef = collection(db, 'artifacts', appId, 'public', 'data', 'rca_archives');
-                        const snapshot = await getDocs(collRef);
-                        const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a,b) => new Date(b.updatedAt) - new Date(a.updatedAt));
-                        setArchives(items);
-                    } catch(e) { console.error("Error fetching archives", e); }
-                };
-                fetchArchives();
-            }, [user, showArchives]);
-
-            const showToast = (msg) => {
-                setToastMsg(msg);
-                setTimeout(() => setToastMsg(''), 3000);
-            };
-
-            const handleShare = async () => {
-                // Berbagi link kini selalu sukses cukup copy dari URL saja
-                try {
-                    const textArea = document.createElement("textarea");
-                    textArea.value = window.location.href.split('?')[0]; // Ambil link web bersih
-                    document.body.appendChild(textArea);
-                    textArea.select();
-                    document.execCommand("copy");
-                    document.body.removeChild(textArea);
-                    showToast('Link website disalin! Siapapun yang masuk akan ada di ruang kolaborasi yang sama.');
-                } catch(e) { console.error('Copy failed', e); }
-            };
-
-            const saveAsNewArchive = async () => {
-                if (!user || !db) { showToast("Belum terhubung ke Cloud Firebase."); return; }
+            // --- LOBBY ACTIONS ---
+            const joinRoom = (id, name) => {
+                if (!userName.trim()) { showToast("Silakan masukkan nama Anda terlebih dahulu."); return; }
+                localStorage.setItem('rca_username', userName);
+                setActiveRoomId(id);
+                setActiveRoomName(name);
+                setInRoom(true);
                 
-                const payload = JSON.stringify({ fishbone: data, fiveWhys, ftaData });
-                const name = data.name || 'Proyek RCA Private Baru';
-                const problem = data.problem;
+                const url = new URL(window.location.href);
+                url.searchParams.set('session', id);
+                window.history.replaceState(null, '', url.toString());
+            };
+
+            const leaveRoom = () => {
+                setInRoom(false);
+                setActiveRoomId(null);
+                const url = new URL(window.location.href);
+                url.searchParams.delete('session');
+                window.history.replaceState(null, '', url.toString());
+            };
+
+            const createNewRoom = async () => {
+                if (!userName.trim()) { showToast("Silakan masukkan nama Anda terlebih dahulu."); return; }
+                if (!newRoomName.trim()) { showToast("Nama ruang tidak boleh kosong."); return; }
+                
+                localStorage.setItem('rca_username', userName);
+                const initialData = formatPresetData(PRESETS['6M']);
+                initialData.problem = newRoomProblem || 'Masalah Baru';
+                const payload = JSON.stringify({ fishbone: initialData, fiveWhys, ftaData });
 
                 try {
                     const collRef = collection(db, 'artifacts', appId, 'public', 'data', 'rca_archives');
                     const newDoc = await addDoc(collRef, {
-                        name, problem, payload,
+                        name: newRoomName,
+                        problem: initialData.problem,
+                        payload,
                         createdAt: new Date().toISOString(),
                         updatedAt: new Date().toISOString(),
                         createdBy: user.uid
                     });
-                    setActiveDoc({ id: newDoc.id });
-                    setShowArchives(false);
-                    showToast('Ruang kolaborasi Private baru berhasil dibuat!');
                     
-                    const url = new URL(window.location.href);
-                    url.searchParams.set('session', newDoc.id);
-                    window.history.replaceState(null, '', url.toString());
-
-                } catch(e) { 
-                    console.error("Error creating archive", e); 
-                    showToast("Gagal menyimpan. Cek aturan keamanan (Rules) Firestore Anda.");
+                    setShowNewRoomForm(false);
+                    setNewRoomName('');
+                    setNewRoomProblem('');
+                    joinRoom(newDoc.id, newRoomName);
+                } catch(e) {
+                    console.error(e);
+                    showToast("Gagal membuat ruang. Cek koneksi Anda.");
                 }
             };
 
-            const loadArchive = (item) => {
-                isRemoteUpdate.current = true;
-                try {
-                    const parsed = JSON.parse(item.payload);
-                    if (parsed.fishbone) setData(parsed.fishbone);
-                    if (parsed.fiveWhys) setFiveWhys(parsed.fiveWhys);
-                    if (parsed.ftaData) setFtaData(parsed.ftaData);
-                } catch(e) { console.error(e); }
-                setActiveDoc({ id: item.id });
-                setShowArchives(false);
-
-                const url = new URL(window.location.href);
-                if (item.id === 'global-live-workspace') {
-                    url.searchParams.delete('session');
-                } else {
-                    url.searchParams.set('session', item.id);
-                }
-                window.history.replaceState(null, '', url.toString());
-                showToast(`Dimuat: ${item.name}`);
-            };
-
-            const deleteArchive = async (id, e) => {
+            const deleteRoom = async (id, e) => {
                 e.stopPropagation();
-                if (id === 'global-live-workspace') {
-                    showToast("Ruang Global tidak dapat dihapus!");
-                    return;
-                }
-                if (!user || !db) return;
+                if (!confirm("Hapus ruangan ini secara permanen?")) return;
                 try {
                     const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'rca_archives', id);
                     await deleteDoc(docRef);
-                    setArchives(archives.filter(a => a.id !== id));
-                    if (activeDoc?.id === id) {
-                        setActiveDoc({ id: 'global-live-workspace' });
-                        const url = new URL(window.location.href);
-                        url.searchParams.delete('session');
-                        window.history.replaceState(null, '', url.toString());
-                    }
-                    showToast("Arsip Private dihapus.");
-                } catch(e) { console.error("Error deleting archive", e); }
+                    showToast("Ruangan dihapus.");
+                } catch(e) { console.error(e); }
             };
 
-            // Auto Save Fallback
-            useEffect(() => { localStorage.setItem('rca_fishbone_data', JSON.stringify(data)); }, [data]);
-            useEffect(() => { localStorage.setItem('rca_5whys_data', JSON.stringify(fiveWhys)); }, [fiveWhys]);
-            useEffect(() => { localStorage.setItem('rca_fta_data', JSON.stringify(ftaData)); }, [ftaData]);
+            const handleShare = async () => {
+                try {
+                    const textArea = document.createElement("textarea");
+                    textArea.value = window.location.href; 
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    document.execCommand("copy");
+                    document.body.removeChild(textArea);
+                    showToast('Link ruangan disalin! Bagikan ke tim Anda.');
+                } catch(e) { console.error('Copy failed', e); }
+            };
 
             // INTERAKSI POINTER UNTUK FISHBONE
             const handlePointerDown = (e) => {
@@ -645,58 +611,52 @@
             const handleFTAAddChild = (id, type) => setFtaData(addChildFTANode(ftaData, id, type));
             const handleFTARemove = (id) => setFtaData(removeFTANode(ftaData, id));
 
-            const renderFTANode = (node, isRoot = false) => (
-                <li key={node.id}>
-                    <div className="flex flex-col items-center">
-                        <div className="relative group">
-                            <div className={`text-center p-3 border-2 shadow-sm relative z-10 transition-colors flex flex-col justify-center items-center ${node.type === 'basic' ? 'w-36 h-36 rounded-full border-red-500 bg-red-50' : 'w-40 md:w-48 rounded-lg border-blue-600 bg-white'}`}>
-                                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{node.type}</div>
-                                <textarea value={node.text} onChange={(e) => handleFTAUpdate(node.id, 'text', e.target.value)} rows="2" className="w-full bg-transparent text-sm font-semibold text-center outline-none resize-none" placeholder="Tulis event..." />
-                                
-                                <div className="absolute top-0 right-0 translate-x-full opacity-0 group-hover:opacity-100 transition-opacity bg-white border border-slate-200 shadow-xl rounded-lg p-1.5 ml-2 flex flex-col gap-1 z-50 w-32 no-print">
-                                    {node.type !== 'basic' && (
-                                        <>
-                                            <button onClick={() => handleFTAAddChild(node.id, 'intermediate')} className="text-[10px] text-left font-semibold text-blue-700 hover:bg-blue-50 px-2 py-1.5 rounded transition">+ Intermediate</button>
-                                            <button onClick={() => handleFTAAddChild(node.id, 'basic')} className="text-[10px] text-left font-semibold text-red-700 hover:bg-red-50 px-2 py-1.5 rounded transition">+ Basic Event</button>
-                                        </>
-                                    )}
-                                    {!isRoot && <button onClick={() => handleFTARemove(node.id)} className="text-[10px] text-left font-semibold text-slate-600 hover:bg-slate-100 px-2 py-1.5 rounded transition mt-1 border-t border-slate-100 pt-1.5">Hapus Event</button>}
-                                </div>
-                            </div>
-                        </div>
+            const renderFTANode = (node, isRoot = false) => {
+                const textLen = node.text ? node.text.length : 0;
+                const lineBreaks = node.text ? (node.text.match(/\n/g) || []).length : 0;
+                const calcRows = Math.max(2, lineBreaks + 1, Math.ceil(textLen / 18));
 
-                        {node.type !== 'basic' && node.children && node.children.length > 0 && (
-                            <div className="flex flex-col items-center">
-                                <div className="w-[2px] h-5 bg-slate-400"></div>
-                                <div className="relative z-10 cursor-pointer group/gate hover:scale-110 transition-transform no-print" onClick={() => handleFTAUpdate(node.id, 'gate', node.gate === 'AND' ? 'OR' : 'AND')} title="Klik untuk menukar jenis gerbang (AND / OR)">
-                                    {node.gate === 'AND' ? (
-                                        <svg width="44" height="34" viewBox="0 0 44 34">
-                                           <path d="M 4 32 L 4 16 A 18 14 0 0 1 40 16 L 40 32 Z" fill="#1e293b" stroke="#1e293b" strokeWidth="2"/>
-                                           <text x="22" y="24" textAnchor="middle" fontSize="10" fontWeight="bold" fill="#ffffff">AND</text>
-                                        </svg>
-                                    ) : (
-                                        <svg width="44" height="34" viewBox="0 0 44 34">
-                                           <path d="M 4 32 Q 22 22 40 32 Q 40 10 22 4 Q 4 10 4 32 Z" fill="#ffffff" stroke="#1e293b" strokeWidth="2"/>
-                                           <text x="22" y="24" textAnchor="middle" fontSize="10" fontWeight="bold" fill="#1e293b">OR</text>
-                                        </svg>
-                                    )}
+                return (
+                    <li key={node.id}>
+                        <div className="flex flex-col items-center">
+                            <div className="relative group">
+                                <div className={`text-center p-3 border-2 shadow-sm relative z-10 transition-colors flex flex-col justify-center items-center ${node.type === 'basic' ? 'w-40 min-h-[9rem] rounded-[3rem] border-red-500 bg-red-50' : 'w-40 md:w-48 min-h-[6rem] rounded-lg border-blue-600 bg-white'}`}>
+                                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{node.type}</div>
+                                    <textarea value={node.text} onChange={(e) => handleFTAUpdate(node.id, 'text', e.target.value)} rows={calcRows} className="w-full bg-transparent text-sm font-semibold text-center outline-none resize-none overflow-hidden" placeholder="Tulis event..." />
+                                    
+                                    <div className="absolute top-0 right-0 translate-x-full opacity-0 group-hover:opacity-100 transition-opacity bg-white border border-slate-200 shadow-xl rounded-lg p-1.5 ml-2 flex flex-col gap-1 z-50 w-32 no-print">
+                                        {node.type !== 'basic' && (
+                                            <>
+                                                <button onClick={() => handleFTAAddChild(node.id, 'intermediate')} className="text-[10px] text-left font-semibold text-blue-700 hover:bg-blue-50 px-2 py-1.5 rounded transition">+ Intermediate</button>
+                                                <button onClick={() => handleFTAAddChild(node.id, 'basic')} className="text-[10px] text-left font-semibold text-red-700 hover:bg-red-50 px-2 py-1.5 rounded transition">+ Basic Event</button>
+                                            </>
+                                        )}
+                                        {!isRoot && <button onClick={() => handleFTARemove(node.id)} className="text-[10px] text-left font-semibold text-slate-600 hover:bg-slate-100 px-2 py-1.5 rounded transition mt-1 border-t border-slate-100 pt-1.5">Hapus Event</button>}
+                                    </div>
                                 </div>
                             </div>
-                        )}
-                    </div>
-                    {node.type !== 'basic' && node.children && node.children.length > 0 && (
-                        <ul>{node.children.map(child => renderFTANode(child))}</ul>
-                    )}
-                </li>
-            );
+                            {node.type !== 'basic' && node.children && node.children.length > 0 && (
+                                <div className="flex flex-col items-center">
+                                    <div className="w-[2px] h-5 bg-slate-400"></div>
+                                    <div className="relative z-10 cursor-pointer group/gate hover:scale-110 transition-transform no-print" onClick={() => handleFTAUpdate(node.id, 'gate', node.gate === 'AND' ? 'OR' : 'AND')} title="Klik untuk menukar jenis gerbang">
+                                        {node.gate === 'AND' ? (
+                                            <svg width="44" height="34" viewBox="0 0 44 34"><path d="M 4 32 L 4 16 A 18 14 0 0 1 40 16 L 40 32 Z" fill="#1e293b" stroke="#1e293b" strokeWidth="2"/><text x="22" y="24" textAnchor="middle" fontSize="10" fontWeight="bold" fill="#ffffff">AND</text></svg>
+                                        ) : (
+                                            <svg width="44" height="34" viewBox="0 0 44 34"><path d="M 4 32 Q 22 22 40 32 Q 40 10 22 4 Q 4 10 4 32 Z" fill="#ffffff" stroke="#1e293b" strokeWidth="2"/><text x="22" y="24" textAnchor="middle" fontSize="10" fontWeight="bold" fill="#1e293b">OR</text></svg>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                        {node.type !== 'basic' && node.children && node.children.length > 0 && (<ul>{node.children.map(child => renderFTANode(child))}</ul>)}
+                    </li>
+                );
+            };
 
             // MULTI-TOOL AI GENERATE
             const handleAIGenerate = async () => {
                 if (!aiPrompt.trim()) return setAiError("Deskripsi masalah wajib diisi.");
-                setIsGenerating(true);
-                setAiError('');
-                localStorage.setItem('gemini_model', aiModel);
-
+                setIsGenerating(true); setAiError(''); localStorage.setItem('gemini_model', aiModel);
                 const expectedCategories = PRESETS['6M'].categories.map(c => c.name);
 
                 try {
@@ -744,15 +704,12 @@
                         const blobURL = URL.createObjectURL(svgBlob);
                         const img = new Image();
                         img.onload = () => {
-                            const canvas = document.createElement('canvas');
-                            canvas.width = SVG_WIDTH * 2; canvas.height = SVG_HEIGHT * 2;
+                            const canvas = document.createElement('canvas'); canvas.width = SVG_WIDTH * 2; canvas.height = SVG_HEIGHT * 2;
                             const ctx = canvas.getContext('2d'); ctx.scale(2, 2);
-                            ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, SVG_WIDTH, SVG_HEIGHT);
-                            ctx.drawImage(img, 0, 0, SVG_WIDTH, SVG_HEIGHT);
+                            ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, SVG_WIDTH, SVG_HEIGHT); ctx.drawImage(img, 0, 0, SVG_WIDTH, SVG_HEIGHT);
                             const link = document.createElement('a'); link.download = `Fishbone-${Date.now()}.png`; link.href = canvas.toDataURL('image/png'); link.click();
                             URL.revokeObjectURL(blobURL); setIsExporting(false);
-                        };
-                        img.src = blobURL;
+                        }; img.src = blobURL;
                     } catch(e) { setIsExporting(false); }
                 } else {
                     const targetRef = activeTab === '5whys' ? whysRef.current : ftaRef.current;
@@ -775,6 +732,99 @@
                 return { baseX, baseY: SPINE_Y, tipX: baseX - dx, tipY: isTop ? SPINE_Y - dy : SPINE_Y + dy };
             };
 
+            // ================== LOBBY RENDER ==================
+            if (!inRoom) {
+                return (
+                    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
+                        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl flex flex-col md:flex-row overflow-hidden min-h-[550px]">
+                            {/* Kiri: Branding */}
+                            <div className="md:w-1/3 bg-blue-600 p-8 text-white flex flex-col justify-between">
+                                <div>
+                                    <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center mb-6">
+                                        <AlignEndHorizontal className="w-6 h-6 text-blue-600 transform rotate-180" />
+                                    </div>
+                                    <h1 className="text-3xl font-bold mb-2">RCA Studio</h1>
+                                    <p className="text-blue-100 mb-8">Kolaborasi Tim Secara Real-Time. Pecahkan masalah dengan Fishbone, 5 Whys, dan FTA dalam satu ruang.</p>
+                                </div>
+                                <div className="space-y-4">
+                                    <div className="bg-blue-700/50 p-4 rounded-xl border border-blue-500">
+                                        <label className="text-xs font-bold text-blue-200 uppercase tracking-wider mb-2 block">1. Siapa nama Anda?</label>
+                                        <input 
+                                            type="text" 
+                                            value={userName} 
+                                            onChange={(e) => setUserName(e.target.value)} 
+                                            placeholder="Ketik nama Anda..."
+                                            className="w-full bg-white text-slate-900 px-4 py-2 rounded-lg font-semibold outline-none focus:ring-2 focus:ring-amber-400"
+                                            autoFocus
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            {/* Kanan: Room Selection */}
+                            <div className="md:w-2/3 p-8 flex flex-col bg-slate-50 relative">
+                                {toastMsg && <div className="absolute top-4 right-4 bg-slate-800 text-white px-4 py-2 rounded-lg shadow-lg text-xs font-semibold z-50 animate-in fade-in">{toastMsg}</div>}
+                                
+                                {showNewRoomForm ? (
+                                    <div className="flex-1 flex flex-col justify-center max-w-md mx-auto w-full animate-in fade-in">
+                                        <div className="mb-6">
+                                            <button onClick={() => setShowNewRoomForm(false)} className="text-sm font-semibold text-slate-500 hover:text-slate-800 mb-4 flex items-center gap-1"><X className="w-4 h-4"/> Batal</button>
+                                            <h2 className="text-2xl font-bold text-slate-800">Buat Ruang Baru</h2>
+                                            <p className="text-slate-500 text-sm">Tentukan nama ruang diskusi dan masalah utama.</p>
+                                        </div>
+                                        <div className="space-y-4">
+                                            <div>
+                                                <label className="text-sm font-semibold text-slate-700 block mb-1">Nama Ruang (Contoh: Tim Mesin A)</label>
+                                                <input type="text" value={newRoomName} onChange={e=>setNewRoomName(e.target.value)} className="w-full bg-white border border-slate-300 px-4 py-3 rounded-xl outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" placeholder="Ketik nama ruangan..."/>
+                                            </div>
+                                            <div>
+                                                <label className="text-sm font-semibold text-slate-700 block mb-1">Masalah Utama (Top Event)</label>
+                                                <textarea rows="3" value={newRoomProblem} onChange={e=>setNewRoomProblem(e.target.value)} className="w-full bg-white border border-slate-300 px-4 py-3 rounded-xl outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" placeholder="Jelaskan masalah secara singkat..."/>
+                                            </div>
+                                            <button onClick={createNewRoom} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition shadow-md">Mulai Diskusi & Buat Ruang</button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="flex-1 flex flex-col h-full">
+                                        <div className="flex justify-between items-center mb-6">
+                                            <div>
+                                                <h2 className="text-2xl font-bold text-slate-800">Pilih Ruang Diskusi</h2>
+                                                <p className="text-slate-500 text-sm">Bergabung ke ruang aktif atau buat ruang baru.</p>
+                                            </div>
+                                            <button onClick={() => setShowNewRoomForm(true)} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2 shadow-sm"><Plus className="w-4 h-4"/> Buat Ruang</button>
+                                        </div>
+                                        
+                                        <div className="flex-1 overflow-y-auto space-y-3 pr-2">
+                                            {lobbyRooms.length === 0 ? (
+                                                <div className="h-full flex flex-col items-center justify-center text-slate-400">
+                                                    <Users className="w-12 h-12 mb-2 opacity-50" />
+                                                    <p>Belum ada ruang yang dibuat.</p>
+                                                </div>
+                                            ) : (
+                                                lobbyRooms.map(room => (
+                                                    <div key={room.id} className="bg-white border border-slate-200 p-4 rounded-xl flex items-center justify-between shadow-sm hover:border-blue-400 hover:shadow transition group">
+                                                        <div className="flex-1 min-w-0 pr-4">
+                                                            <h3 className="font-bold text-slate-800 text-lg truncate">{room.name}</h3>
+                                                            <p className="text-sm text-slate-500 truncate">{room.problem}</p>
+                                                            <div className="text-[10px] font-semibold text-slate-400 mt-2">Update: {new Date(room.updatedAt).toLocaleString('id-ID')}</div>
+                                                        </div>
+                                                        <div className="flex flex-col items-end gap-2 shrink-0">
+                                                            <button onClick={() => joinRoom(room.id, room.name)} className="bg-slate-100 group-hover:bg-blue-600 text-slate-700 group-hover:text-white px-4 py-2 rounded-lg text-sm font-semibold transition">Gabung</button>
+                                                            <button onClick={(e) => deleteRoom(room.id, e)} className="text-red-400 hover:text-red-600 text-xs font-semibold p-1">Hapus</button>
+                                                        </div>
+                                                    </div>
+                                                ))
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            // ================== MAIN APP RENDER ==================
             return (
                 <div className="flex flex-col min-h-screen bg-slate-100">
                     <style>{`
@@ -811,19 +861,10 @@
                             </div>
                             <div>
                                 <h1 className="text-lg font-bold tracking-tight text-slate-800 flex items-center gap-2">
-                                    RCA Studio <span className="text-[10px] font-medium uppercase px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 border border-blue-200">Suite</span>
-                                    
-                                    {/* DIUBAH: Indikator Ruang Global / Private Live */}
-                                    {activeDoc && activeDoc.id === 'global-live-workspace' && (
-                                        <span className="flex items-center gap-1 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-green-100 text-green-700 border border-green-200 ml-1">
-                                            <Globe className="w-3 h-3" /> Global Live
-                                        </span>
-                                    )}
-                                    {activeDoc && activeDoc.id !== 'global-live-workspace' && (
-                                        <span className="flex items-center gap-1 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 border border-blue-200 ml-1">
-                                            <Users className="w-3 h-3" /> Private Live
-                                        </span>
-                                    )}
+                                    <span className="truncate max-w-[150px] md:max-w-[300px]">{activeRoomName}</span>
+                                    <span className="flex items-center gap-1 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-green-100 text-green-700 border border-green-200">
+                                        <Users className="w-3 h-3" /> Live
+                                    </span>
                                 </h1>
                             </div>
                         </div>
@@ -835,21 +876,27 @@
                         </div>
 
                         <div className="flex items-center space-x-2">
-                            <button onClick={handleShare} className="flex items-center space-x-1.5 px-3 py-1.5 text-sm font-medium bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 rounded-lg transition" title="Salin link website untuk berkolaborasi">
-                                <Share2 className="w-4 h-4" /><span className="hidden lg:inline">Salin Link Live</span>
-                            </button>
-                            <button onClick={() => setShowArchives(true)} className="flex items-center space-x-1.5 px-3 py-1.5 text-sm font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-lg transition">
-                                {activeDoc ? <Cloud className="w-4 h-4 text-blue-600" /> : <CloudOff className="w-4 h-4 text-slate-400" />}<span className="hidden sm:inline">Arsip Cloud</span>
+                            {/* PRESENCE AVATARS */}
+                            <div className="hidden lg:flex -space-x-2 overflow-hidden mr-4">
+                                {participants.map(p => (
+                                    <div key={p.uid} className="inline-block h-8 w-8 rounded-full ring-2 ring-white bg-blue-500 flex items-center justify-center text-white text-[10px] font-bold shadow-sm" title={p.name}>
+                                        {p.name.substring(0, 2).toUpperCase()}
+                                    </div>
+                                ))}
+                            </div>
+
+                            <button onClick={handleShare} className="flex items-center space-x-1.5 px-3 py-1.5 text-sm font-medium bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 rounded-lg transition" title="Salin link ruangan ini">
+                                <Share2 className="w-4 h-4" /><span className="hidden xl:inline">Salin Link</span>
                             </button>
                             <button onClick={() => setShowAIModal(true)} className="flex items-center space-x-1.5 px-3 py-1.5 text-sm font-medium bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg transition">
-                                <Bot className="w-4 h-4" /><span className="hidden sm:inline">AI Generate</span>
+                                <Bot className="w-4 h-4" /><span className="hidden lg:inline">AI Generate</span>
                             </button>
-                            <div className="h-5 w-px bg-slate-300 mx-1" />
-                            <button onClick={exportPNG} className="flex items-center px-3 py-1.5 text-sm font-medium bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 rounded-lg transition">
-                                <Download className="w-4 h-4 text-emerald-600 sm:mr-1.5" /><span className="hidden sm:inline">Export PNG</span>
+                            <div className="h-5 w-px bg-slate-300 mx-1 hidden sm:block" />
+                            <button onClick={exportPNG} className="hidden sm:flex items-center px-3 py-1.5 text-sm font-medium bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 rounded-lg transition">
+                                <Download className="w-4 h-4 text-emerald-600 md:mr-1.5" /><span className="hidden lg:inline">Export PNG</span>
                             </button>
-                            <button onClick={() => window.print()} className="flex items-center px-3 py-1.5 text-sm font-medium bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 rounded-lg transition">
-                                <Printer className="w-4 h-4 text-purple-600 sm:mr-1.5" /><span className="hidden sm:inline">Print/PDF</span>
+                            <button onClick={leaveRoom} className="flex items-center space-x-1.5 px-3 py-1.5 text-sm font-medium bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg transition ml-1">
+                                <LogOut className="w-4 h-4" /><span className="hidden sm:inline">Keluar</span>
                             </button>
                         </div>
                     </header>
@@ -997,7 +1044,7 @@
                                     <div className="bg-white border border-blue-200 rounded-xl p-5 shadow-sm flex items-start gap-4">
                                         <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl shrink-0 mt-0.5"><FileText className="w-5 h-5" /></div>
                                         <div className="flex-1">
-                                            <h3 className="text-xs font-bold text-blue-800 uppercase tracking-wider mb-1">Executive Conclusion (Sintesis RCA 6M)</h3>
+                                            <h3 className="text-xs font-bold text-blue-800 uppercase tracking-wider mb-1">Executive Conclusion (Sintesis RCA)</h3>
                                             <textarea rows="2" value={data.conclusion} onChange={(e) => setData(prev => ({ ...prev, conclusion: e.target.value }))} className="w-full text-sm text-slate-700 bg-transparent outline-none resize-none font-medium leading-relaxed" />
                                         </div>
                                     </div>
@@ -1151,55 +1198,6 @@
                     {toastMsg && (
                         <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] bg-slate-800 text-white px-5 py-3 rounded-full shadow-2xl font-semibold text-sm flex items-center gap-2">
                             <Check className="w-4 h-4 text-green-400" /> {toastMsg}
-                        </div>
-                    )}
-
-                    {/* MODAL ARSIP CLOUD */}
-                    {showArchives && (
-                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 no-print">
-                            <div className="bg-white border border-slate-200 w-full max-w-2xl rounded-2xl p-6 shadow-2xl space-y-5 max-h-[85vh] flex flex-col">
-                                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                                    <h3 className="text-base font-bold text-slate-800 flex items-center gap-2"><Cloud className="w-5 h-5 text-blue-500" /> Arsip Kolaborasi Private</h3>
-                                    <button onClick={() => setShowArchives(false)} className="text-slate-400 hover:text-slate-700 bg-slate-100 p-1.5 rounded-lg"><X className="w-4 h-4" /></button>
-                                </div>
-                                <div className="flex justify-between items-center bg-blue-50 p-4 rounded-xl border border-blue-100">
-                                    <div className="text-sm text-blue-800">
-                                        <span className="font-bold block text-base mb-0.5">Simpan Proyek Private Terpadu</span>
-                                        <span className="text-xs">Buat link baru yang terpisah dari Ruang Global. Berguna untuk menyimpan sesi/rapat berbeda.</span>
-                                    </div>
-                                    <button onClick={saveAsNewArchive} className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition whitespace-nowrap shadow-sm flex items-center gap-2"><Plus className="w-4 h-4" /> Simpan Private</button>
-                                </div>
-                                <div className="overflow-y-auto flex-1 border border-slate-200 rounded-xl bg-slate-50 p-2 space-y-2">
-                                    {/* Menu Utama: Ruang Global */}
-                                    <div className={`bg-white border p-4 rounded-xl flex items-center justify-between shadow-sm cursor-pointer transition ${activeDoc?.id === 'global-live-workspace' ? 'border-green-500 ring-1 ring-green-500' : 'border-slate-200 hover:border-blue-400'}`} onClick={() => loadArchive({ id: 'global-live-workspace', name: 'Ruang Kerja Global (Publik)', problem: 'Ruang utama tempat setiap orang masuk pertama kali secara otomatis.' })}>
-                                        <div>
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">DEFAULT</span>
-                                                <span className="text-sm font-bold text-slate-800">Ruang Kerja Global (Publik)</span>
-                                                {activeDoc?.id === 'global-live-workspace' && <span className="text-[10px] font-bold text-green-700 flex items-center gap-1 bg-green-100 px-1.5 py-0.5 rounded"><Users className="w-3 h-3"/> Sedang Aktif (Live)</span>}
-                                            </div>
-                                            <div className="text-xs text-slate-500 truncate max-w-md">Ruang utama yang dibuka otomatis saat tidak ada parameter link.</div>
-                                        </div>
-                                    </div>
-                                    
-                                    {archives.filter(arc => arc.id !== 'global-live-workspace').map(arc => (
-                                        <div key={arc.id} className={`bg-white border p-4 rounded-xl flex items-center justify-between shadow-sm cursor-pointer transition ${activeDoc?.id === arc.id ? 'border-blue-500 ring-1 ring-blue-500' : 'border-slate-200 hover:border-blue-400'}`} onClick={() => loadArchive(arc)}>
-                                            <div>
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200">PRIVATE</span>
-                                                    <span className="text-sm font-bold text-slate-800">{arc.name}</span>
-                                                    {activeDoc?.id === arc.id && <span className="text-[10px] font-bold text-blue-700 flex items-center gap-1 bg-blue-100 px-1.5 py-0.5 rounded"><Users className="w-3 h-3"/> Aktif</span>}
-                                                </div>
-                                                <div className="text-xs text-slate-500 truncate max-w-md">{arc.problem}</div>
-                                            </div>
-                                            <div className="flex items-center gap-4">
-                                                <div className="text-[10px] text-slate-400 text-right font-medium">{new Date(arc.updatedAt).toLocaleDateString('id-ID', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'})}</div>
-                                                <button onClick={(e) => deleteArchive(arc.id, e)} className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"><Trash2 className="w-4 h-4" /></button>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
                         </div>
                     )}
                 </div>
