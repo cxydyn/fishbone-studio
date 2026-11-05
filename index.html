@@ -35,12 +35,13 @@
             ZoomIn, ZoomOut, RotateCcw, Plus, Download, Printer,
             Sparkles, Info, Layers, ChevronDown, Edit2, Check, X,
             HelpCircle, Eye, EyeOff, Bot, Wand2, Loader2, Trash2, FileText, Move,
-            Network, ListEnd, AlignEndHorizontal, Cloud, CloudOff, Users, Share2
+            Network, ListEnd, AlignEndHorizontal, Cloud, CloudOff, Users, Share2, Globe
         } from 'lucide-react';
 
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, doc, getDocs, addDoc, updateDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        // DIUBAH: Menambahkan fungsi setDoc
+        import { getFirestore, collection, doc, getDocs, addDoc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Firebase Config Setup
         const appId = 'rca-studio-app';
@@ -164,7 +165,7 @@
 
         function App() {
             // --- TABS STATE ---
-            const [activeTab, setActiveTab] = useState('fishbone'); // 'fishbone', '5whys', 'fta'
+            const [activeTab, setActiveTab] = useState('fishbone'); 
 
             // --- FISHBONE STATE ---
             const [data, setData] = useState(() => {
@@ -194,7 +195,7 @@
                         "Why 5: Jadwal pelumasan preventif bulanan terlewat."
                     ],
                     rootCause: "Sistem penjadwalan maintenance masih manual sehingga rawan terlewat oleh teknisi.",
-                    actionPlan: "Implementasikan Computerized Maintenance Management System (CMMS) dengan notifikasi alarm otomatis ke smartphone teknisi."
+                    actionPlan: "Implementasikan CMMS dengan notifikasi alarm otomatis."
                 };
             });
 
@@ -251,16 +252,14 @@
             const whysRef = useRef(null);
             const ftaRef = useRef(null);
 
-            // Inisialisasi Autentikasi Firebase (Diperbaiki)
+            // Inisialisasi Autentikasi Firebase
             useEffect(() => {
                 if (!auth) return;
                 
-                // onAuthStateChanged akan mendeteksi status login pengguna secara otomatis
                 const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
                     if (currentUser) {
                         setUser(currentUser);
                     } else {
-                        // Jika belum login, login sebagai anonim
                         signInAnonymously(auth).catch(e => {
                             console.error("Gagal login anonim:", e);
                             showToast("Gagal terhubung ke Cloud. Cek koneksi Anda.");
@@ -271,24 +270,19 @@
                 return () => unsubscribe();
             }, []);
 
-            // Ambil Daftar Arsip dari Cloud Firestore
+            // DIUBAH: Cek URL untuk Session Tertentu, Jika Tidak Ada Otomatis ke Ruang Global
             useEffect(() => {
-                if (!user || !db || !showArchives) return;
-                const fetchArchives = async () => {
-                    try {
-                        const collRef = collection(db, 'artifacts', appId, 'public', 'data', 'rca_archives');
-                        const snapshot = await getDocs(collRef);
-                        const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a,b) => new Date(b.updatedAt) - new Date(a.updatedAt));
-                        setArchives(items);
-                    } catch(e) { console.error("Error fetching archives", e); }
-                };
-                fetchArchives();
-            }, [user, showArchives]);
-
-            const showToast = (msg) => {
-                setToastMsg(msg);
-                setTimeout(() => setToastMsg(''), 3000);
-            };
+                if (!user || !db) return;
+                const urlParams = new URLSearchParams(window.location.search);
+                const sessionId = urlParams.get('session');
+                
+                if (sessionId) {
+                    setActiveDoc({ id: sessionId });
+                } else {
+                    // OTOMATIS: Semua orang yang buka web tanpa link khusus masuk ke sini!
+                    setActiveDoc({ id: 'global-live-workspace' });
+                }
+            }, [user, db]);
 
             // Listener Sinkronisasi Real-Time (Menerima Data)
             useEffect(() => {
@@ -297,7 +291,7 @@
                 const unsub = onSnapshot(docRef, (snap) => {
                     if (snap.exists()) {
                         const docData = snap.data();
-                        isRemoteUpdate.current = true; // Tandai agar tidak memicu loop pengiriman balik
+                        isRemoteUpdate.current = true; 
                         try {
                             const parsed = JSON.parse(docData.payload);
                             if (parsed.fishbone) setData(parsed.fishbone);
@@ -320,78 +314,57 @@
                     const payload = JSON.stringify({ fishbone: data, fiveWhys, ftaData });
                     try {
                         const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'rca_archives', activeDoc.id);
-                        await updateDoc(docRef, { payload, updatedAt: new Date().toISOString() });
+                        // DIUBAH: Pakai setDoc + merge agar Ruang Global otomatis terbuat jika belum ada
+                        await setDoc(docRef, { 
+                            name: activeDoc.id === 'global-live-workspace' ? '🌐 Ruang Kerja Global (Publik)' : (data.name || 'Proyek Kolaborasi'),
+                            problem: data.problem,
+                            payload, 
+                            updatedAt: new Date().toISOString() 
+                        }, { merge: true });
                     } catch (e) { console.error("Sync error", e); }
                 };
-                // Debounce 400ms agar pengiriman cepat (real-time feel)
+                // Debounce cepat (400ms) untuk real-time feel
                 const timeoutId = setTimeout(save, 400);
                 return () => clearTimeout(timeoutId);
             }, [data, fiveWhys, ftaData, activeDoc, user]);
 
-            // Cek URL untuk Auto-Join Session
+            // Ambil Daftar Arsip (Hanya untuk dokumen yang BUKAN global)
             useEffect(() => {
-                if (!user || !db) return;
-                const urlParams = new URLSearchParams(window.location.search);
-                const sessionId = urlParams.get('session');
-                if (sessionId && !activeDoc) {
-                    setActiveDoc({ id: sessionId });
-                    showToast('Berhasil bergabung ke sesi kolaborasi!');
-                }
-            }, [user]);
-
-            const handleShare = async () => {
-                if (!user || !db) {
-                    showToast("Sistem sedang menghubungkan ke Cloud... Coba lagi sebentar.");
-                    return;
-                }
-                
-                let currentDocId = activeDoc?.id;
-                
-                if (!currentDocId) {
-                    const payload = JSON.stringify({ fishbone: data, fiveWhys, ftaData });
-                    const name = data.name || 'Proyek RCA Kolaborasi';
-                    const problem = data.problem;
-
+                if (!user || !db || !showArchives) return;
+                const fetchArchives = async () => {
                     try {
                         const collRef = collection(db, 'artifacts', appId, 'public', 'data', 'rca_archives');
-                        const newDoc = await addDoc(collRef, {
-                            name, problem, payload,
-                            createdAt: new Date().toISOString(),
-                            updatedAt: new Date().toISOString(),
-                            createdBy: user.uid
-                        });
-                        currentDocId = newDoc.id;
-                        setActiveDoc({ id: newDoc.id });
-                    } catch(e) { 
-                        console.error("Error creating archive", e);
-                        showToast("Gagal membuat sesi live. Cek aturan Firestore Anda.");
-                        return; 
-                    }
-                }
-                
-                const url = new URL(window.location.href);
-                url.searchParams.set('session', currentDocId);
-                window.history.replaceState(null, '', url.toString());
-                
+                        const snapshot = await getDocs(collRef);
+                        const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a,b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+                        setArchives(items);
+                    } catch(e) { console.error("Error fetching archives", e); }
+                };
+                fetchArchives();
+            }, [user, showArchives]);
+
+            const showToast = (msg) => {
+                setToastMsg(msg);
+                setTimeout(() => setToastMsg(''), 3000);
+            };
+
+            const handleShare = async () => {
+                // Berbagi link kini selalu sukses cukup copy dari URL saja
                 try {
                     const textArea = document.createElement("textarea");
-                    textArea.value = url.toString();
+                    textArea.value = window.location.href.split('?')[0]; // Ambil link web bersih
                     document.body.appendChild(textArea);
                     textArea.select();
                     document.execCommand("copy");
                     document.body.removeChild(textArea);
-                    showToast('Link kolaborasi disalin! Bagikan ke tim Anda.');
+                    showToast('Link website disalin! Siapapun yang masuk akan ada di ruang kolaborasi yang sama.');
                 } catch(e) { console.error('Copy failed', e); }
             };
 
             const saveAsNewArchive = async () => {
-                if (!user || !db) {
-                    showToast("Belum terhubung ke Cloud Firebase.");
-                    return;
-                }
+                if (!user || !db) { showToast("Belum terhubung ke Cloud Firebase."); return; }
                 
                 const payload = JSON.stringify({ fishbone: data, fiveWhys, ftaData });
-                const name = data.name || 'Proyek RCA Baru';
+                const name = data.name || 'Proyek RCA Private Baru';
                 const problem = data.problem;
 
                 try {
@@ -404,7 +377,7 @@
                     });
                     setActiveDoc({ id: newDoc.id });
                     setShowArchives(false);
-                    showToast('Proyek baru berhasil disimpan di Cloud!');
+                    showToast('Ruang kolaborasi Private baru berhasil dibuat!');
                     
                     const url = new URL(window.location.href);
                     url.searchParams.set('session', newDoc.id);
@@ -428,26 +401,33 @@
                 setShowArchives(false);
 
                 const url = new URL(window.location.href);
-                url.searchParams.set('session', item.id);
+                if (item.id === 'global-live-workspace') {
+                    url.searchParams.delete('session');
+                } else {
+                    url.searchParams.set('session', item.id);
+                }
                 window.history.replaceState(null, '', url.toString());
-                
-                showToast('Arsip berhasil dimuat!');
+                showToast(`Dimuat: ${item.name}`);
             };
 
             const deleteArchive = async (id, e) => {
                 e.stopPropagation();
+                if (id === 'global-live-workspace') {
+                    showToast("Ruang Global tidak dapat dihapus!");
+                    return;
+                }
                 if (!user || !db) return;
                 try {
                     const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'rca_archives', id);
                     await deleteDoc(docRef);
                     setArchives(archives.filter(a => a.id !== id));
                     if (activeDoc?.id === id) {
-                        setActiveDoc(null);
+                        setActiveDoc({ id: 'global-live-workspace' });
                         const url = new URL(window.location.href);
                         url.searchParams.delete('session');
                         window.history.replaceState(null, '', url.toString());
                     }
-                    showToast("Arsip dihapus.");
+                    showToast("Arsip Private dihapus.");
                 } catch(e) { console.error("Error deleting archive", e); }
             };
 
@@ -700,16 +680,12 @@
                                            <text x="22" y="24" textAnchor="middle" fontSize="10" fontWeight="bold" fill="#1e293b">OR</text>
                                         </svg>
                                     )}
-                                    <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 opacity-0 group-hover/gate:opacity-100 bg-black text-white text-[10px] px-2 py-1 rounded whitespace-nowrap">Tukar Gate</div>
                                 </div>
                             </div>
                         )}
                     </div>
-                    
                     {node.type !== 'basic' && node.children && node.children.length > 0 && (
-                        <ul>
-                            {node.children.map(child => renderFTANode(child))}
-                        </ul>
+                        <ul>{node.children.map(child => renderFTANode(child))}</ul>
                     )}
                 </li>
             );
@@ -725,62 +701,36 @@
 
                 try {
                     const response = await fetch('/api/generate', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            prompt: aiPrompt,
-                            model: aiModel,
-                            tool: activeTab,
-                            expectedCategories
-                        })
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ prompt: aiPrompt, model: aiModel, tool: activeTab, expectedCategories })
                     });
-
                     const resJson = await response.json();
                     if (!response.ok) throw new Error(resJson.error || 'Gagal memproses data melalui server.');
-
                     let parsedData;
-                    try { parsedData = JSON.parse(resJson.result); } 
-                    catch (e) { parsedData = JSON.parse(resJson.result.replace(/```json/gi, '').replace(/```/gi, '').trim()); }
+                    try { parsedData = JSON.parse(resJson.result); } catch (e) { parsedData = JSON.parse(resJson.result.replace(/```json/gi, '').replace(/```/gi, '').trim()); }
 
                     if (activeTab === 'fishbone') {
                         const mappedCategories = (parsedData.categories || []).map((cat, i) => {
                             const existingColor = PRESETS['6M'].categories[i]?.color || COLOR_PALETTE[i % COLOR_PALETTE.length];
                             return {
-                                id: `cat-ai-${Date.now()}-${i}`,
-                                name: cat.name || `Kategori ${i + 1}`,
-                                color: existingColor,
+                                id: `cat-ai-${Date.now()}-${i}`, name: cat.name || `Kategori ${i + 1}`, color: existingColor,
                                 causes: (cat.causes || []).map((item, j) => {
                                     const isObj = typeof item === 'object' && item !== null;
                                     return {
-                                        id: `c-${Date.now()}-${i}-${j}`,
-                                        text: isObj ? (item.text || 'Penyebab') : item, subCause: isObj ? (item.subCause || '') : '',
-                                        actionPlan: isObj ? (item.actionPlan || '') : '', pic: '', dueDate: '',
-                                        offsetX: 0, offsetY: 0, subOffsetX: 0, subOffsetY: 0, jointOffsetRatio: 0
+                                        id: `c-${Date.now()}-${i}-${j}`, text: isObj ? (item.text || 'Penyebab') : item, subCause: isObj ? (item.subCause || '') : '',
+                                        actionPlan: isObj ? (item.actionPlan || '') : '', pic: '', dueDate: '', offsetX: 0, offsetY: 0, subOffsetX: 0, subOffsetY: 0, jointOffsetRatio: 0
                                     };
                                 })
                             };
                         });
-                        setData(formatPresetData({
-                            name: 'Hasil Analisis AI 6M', problem: parsedData.problem || aiPrompt, conclusion: parsedData.conclusion || 'Analisis telah disusun komprehensif.', categories: mappedCategories
-                        }));
+                        setData(formatPresetData({ name: 'Hasil Analisis AI 6M', problem: parsedData.problem || aiPrompt, conclusion: parsedData.conclusion || 'Analisis telah disusun komprehensif.', categories: mappedCategories }));
                     } else if (activeTab === '5whys') {
-                        setFiveWhys({
-                            problem: parsedData.problem || aiPrompt,
-                            whys: parsedData.whys || [],
-                            rootCause: parsedData.rootCause || '', actionPlan: parsedData.actionPlan || ''
-                        });
+                        setFiveWhys({ problem: parsedData.problem || aiPrompt, whys: parsedData.whys || [], rootCause: parsedData.rootCause || '', actionPlan: parsedData.actionPlan || '' });
                     } else if (activeTab === 'fta') {
                         setFtaData(parsedData);
                     }
-
-                    setShowAIModal(false);
-                    setAiPrompt('');
-                    setZoom(1); setPan({ x: 0, y: 0 });
-                } catch (err) {
-                    setAiError(err.message);
-                } finally {
-                    setIsGenerating(false);
-                }
+                    setShowAIModal(false); setAiPrompt(''); setZoom(1); setPan({ x: 0, y: 0 });
+                } catch (err) { setAiError(err.message); } finally { setIsGenerating(false); }
             };
 
             const exportPNG = () => {
@@ -790,7 +740,6 @@
                         const svgElement = svgRef.current.cloneNode(true);
                         svgElement.querySelectorAll('.no-print').forEach(el => el.remove());
                         svgElement.querySelectorAll('.canvas-outer-bg').forEach(el => { el.setAttribute('fill', '#ffffff'); el.setAttribute('stroke', '#e2e8f0'); });
-                        
                         const svgBlob = new Blob([new XMLSerializer().serializeToString(svgElement)], { type: 'image/svg+xml;charset=utf-8' });
                         const blobURL = URL.createObjectURL(svgBlob);
                         const img = new Image();
@@ -818,7 +767,6 @@
 
             const topCategories = data.categories.filter((_, idx) => idx % 2 === 0);
             const bottomCategories = data.categories.filter((_, idx) => idx % 2 !== 0);
-
             const getRibMetrics = (index, total, isTop) => {
                 const availableLength = SPINE_END_X - SPINE_START_X - 60;
                 const step = total > 1 ? availableLength / total : availableLength / 2;
@@ -841,8 +789,6 @@
                         ::-webkit-scrollbar { width: 8px; height: 8px; }
                         ::-webkit-scrollbar-track { background: #f1f5f9; }
                         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-                        
-                        /* FTA CSS Tree Styling */
                         .fta-tree ul { display: flex; padding-top: 20px; position: relative; justify-content: center; padding-left: 0; margin: 0; }
                         .fta-tree li { display: flex; flex-direction: column; align-items: center; list-style-type: none; position: relative; padding: 20px 10px 0 10px; }
                         .fta-tree li::before, .fta-tree li::after { content: ''; position: absolute; top: 0; right: 50%; border-top: 2px solid #94a3b8; width: 50%; height: 20px; }
@@ -866,12 +812,22 @@
                             <div>
                                 <h1 className="text-lg font-bold tracking-tight text-slate-800 flex items-center gap-2">
                                     RCA Studio <span className="text-[10px] font-medium uppercase px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 border border-blue-200">Suite</span>
-                                    {activeDoc && <span className="flex items-center gap-1 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-green-100 text-green-700 border border-green-200 ml-1"><Users className="w-3 h-3" /> Live Sync</span>}
+                                    
+                                    {/* DIUBAH: Indikator Ruang Global / Private Live */}
+                                    {activeDoc && activeDoc.id === 'global-live-workspace' && (
+                                        <span className="flex items-center gap-1 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-green-100 text-green-700 border border-green-200 ml-1">
+                                            <Globe className="w-3 h-3" /> Global Live
+                                        </span>
+                                    )}
+                                    {activeDoc && activeDoc.id !== 'global-live-workspace' && (
+                                        <span className="flex items-center gap-1 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 border border-blue-200 ml-1">
+                                            <Users className="w-3 h-3" /> Private Live
+                                        </span>
+                                    )}
                                 </h1>
                             </div>
                         </div>
 
-                        {/* DESKTOP TABS */}
                         <div className="hidden md:flex bg-slate-100 p-1 rounded-lg border border-slate-200">
                             <button onClick={() => setActiveTab('fishbone')} className={`px-4 py-1.5 text-sm font-semibold rounded-md transition ${activeTab === 'fishbone' ? 'bg-white shadow text-blue-700' : 'text-slate-600 hover:text-slate-900'}`}>Fishbone (6M)</button>
                             <button onClick={() => setActiveTab('5whys')} className={`px-4 py-1.5 text-sm font-semibold rounded-md transition ${activeTab === '5whys' ? 'bg-white shadow text-blue-700' : 'text-slate-600 hover:text-slate-900'}`}>5 Whys</button>
@@ -879,8 +835,8 @@
                         </div>
 
                         <div className="flex items-center space-x-2">
-                            <button onClick={handleShare} className="flex items-center space-x-1.5 px-3 py-1.5 text-sm font-medium bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 rounded-lg transition">
-                                <Share2 className="w-4 h-4" /><span className="hidden lg:inline">Bagikan (Live)</span>
+                            <button onClick={handleShare} className="flex items-center space-x-1.5 px-3 py-1.5 text-sm font-medium bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 rounded-lg transition" title="Salin link website untuk berkolaborasi">
+                                <Share2 className="w-4 h-4" /><span className="hidden lg:inline">Salin Link Live</span>
                             </button>
                             <button onClick={() => setShowArchives(true)} className="flex items-center space-x-1.5 px-3 py-1.5 text-sm font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-lg transition">
                                 {activeDoc ? <Cloud className="w-4 h-4 text-blue-600" /> : <CloudOff className="w-4 h-4 text-slate-400" />}<span className="hidden sm:inline">Arsip Cloud</span>
@@ -898,16 +854,13 @@
                         </div>
                     </header>
 
-                    {/* MOBILE TABS */}
                     <div className="md:hidden flex bg-white border-b border-slate-200 top-nav overflow-x-auto">
                         <button onClick={() => setActiveTab('fishbone')} className={`flex-1 px-4 py-3 text-sm font-semibold border-b-2 whitespace-nowrap transition ${activeTab === 'fishbone' ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500'}`}>Fishbone</button>
                         <button onClick={() => setActiveTab('5whys')} className={`flex-1 px-4 py-3 text-sm font-semibold border-b-2 whitespace-nowrap transition ${activeTab === '5whys' ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500'}`}>5 Whys</button>
                         <button onClick={() => setActiveTab('fta')} className={`flex-1 px-4 py-3 text-sm font-semibold border-b-2 whitespace-nowrap transition ${activeTab === 'fta' ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500'}`}>Fault Tree</button>
                     </div>
 
-                    {/* =========================================
-                        TOOL 1: FISHBONE
-                        ========================================= */}
+                    {/* TOOL 1: FISHBONE */}
                     {activeTab === 'fishbone' && (
                         <div className="flex flex-col flex-1 animate-in fade-in duration-300">
                             <div ref={containerRef} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onWheel={handleWheel} className={`relative w-full h-[62vh] shrink-0 bg-slate-50 overflow-hidden flex items-center justify-center border-b border-slate-200 shadow-inner cursor-${isPanning ? 'grabbing' : 'grab'} print-wrapper`}>
@@ -1096,9 +1049,7 @@
                         </div>
                     )}
 
-                    {/* =========================================
-                        TOOL 2: 5 WHYS
-                        ========================================= */}
+                    {/* TOOL 2: 5 WHYS */}
                     {activeTab === '5whys' && (
                         <div className="flex flex-col flex-1 bg-slate-50 overflow-y-auto animate-in fade-in duration-300 print-wrapper p-4 md:p-8" ref={whysRef}>
                             <div className="max-w-4xl mx-auto w-full space-y-6">
@@ -1135,26 +1086,21 @@
                         </div>
                     )}
 
-                    {/* =========================================
-                        TOOL 3: FAULT TREE ANALYSIS (FTA)
-                        ========================================= */}
+                    {/* TOOL 3: FTA */}
                     {activeTab === 'fta' && (
                         <div className="flex flex-col flex-1 bg-slate-50 overflow-auto animate-in fade-in duration-300 p-8 print-wrapper" ref={ftaRef}>
                             <div className="w-full min-w-max mx-auto bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
                                 <div className="mb-10 text-center">
                                     <h2 className="text-2xl font-bold text-slate-800 flex items-center justify-center gap-2"><Network className="w-6 h-6 text-blue-600" /> Fault Tree Analysis</h2>
-                                    <p className="text-sm text-slate-500">Pohon Analisis Kegagalan Sistem. Arahkan mouse (hover) pada kotak untuk menambah/menghapus event.</p>
                                 </div>
                                 <div className="fta-tree flex justify-center w-full">
-                                    <ul>
-                                        {renderFTANode(ftaData, true)}
-                                    </ul>
+                                    <ul>{renderFTANode(ftaData, true)}</ul>
                                 </div>
                             </div>
                         </div>
                     )}
 
-                    {/* MODAL EDIT CEPAT DARI DIAGRAM (FISHBONE) */}
+                    {/* MODAL EDIT CEPAT DARI DIAGRAM */}
                     {editingItem && (
                         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 no-print">
                             <div className="bg-white border border-slate-200 w-full max-w-md rounded-2xl p-6 shadow-2xl space-y-4">
@@ -1191,67 +1137,63 @@
                                             <option value="gemini-1.5-pro">1.5 Pro (Penalaran Kompleks)</option>
                                         </select>
                                     </div>
-                                    <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-3 text-xs text-indigo-800 font-medium">AI akan menghasilkan data khusus untuk <b>{activeTab === 'fishbone' ? 'Fishbone Diagram (6M)' : activeTab === '5whys' ? '5 Whys Analysis' : 'Fault Tree Analysis'}</b>.</div>
-                                    <div>
-                                        <label className="text-xs text-slate-500 block mb-1.5 font-bold">Deskripsi Masalah / Laporan Insiden:</label>
-                                        <textarea rows="4" value={aiPrompt} onChange={(e) => setAiPrompt(e.target.value)} placeholder="Ketik atau tempel laporan insiden secara lengkap..." className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" />
-                                    </div>
+                                    <div><label className="text-xs text-slate-500 block mb-1.5 font-bold">Deskripsi Masalah / Laporan Insiden:</label><textarea rows="4" value={aiPrompt} onChange={(e) => setAiPrompt(e.target.value)} placeholder="Ketik atau tempel laporan insiden secara lengkap..." className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" /></div>
                                     {aiError && <div className="text-xs text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-lg font-medium">{aiError}</div>}
                                 </div>
                                 <div className="flex justify-end space-x-3 pt-2">
                                     <button onClick={() => setShowAIModal(false)} disabled={isGenerating} className="px-4 py-2 rounded-lg text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition disabled:opacity-50">Batal</button>
-                                    <button onClick={handleAIGenerate} disabled={isGenerating || !aiPrompt.trim()} className="px-5 py-2 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white transition flex items-center space-x-2 disabled:opacity-50">
-                                        {isGenerating ? <><Loader2 className="w-4 h-4 animate-spin" /><span>Menganalisis...</span></> : <><Bot className="w-4 h-4" /><span>Generate Analisis</span></>}
-                                    </button>
+                                    <button onClick={handleAIGenerate} disabled={isGenerating || !aiPrompt.trim()} className="px-5 py-2 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white transition flex items-center space-x-2 disabled:opacity-50"><Bot className="w-4 h-4" /><span>Generate</span></button>
                                 </div>
                             </div>
                         </div>
                     )}
 
-                    {/* TOAST NOTIFICATION */}
                     {toastMsg && (
                         <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] bg-slate-800 text-white px-5 py-3 rounded-full shadow-2xl font-semibold text-sm flex items-center gap-2">
                             <Check className="w-4 h-4 text-green-400" /> {toastMsg}
                         </div>
                     )}
 
-                    {/* MODAL ARSIP CLOUD & COLLABORATION */}
+                    {/* MODAL ARSIP CLOUD */}
                     {showArchives && (
                         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 no-print">
                             <div className="bg-white border border-slate-200 w-full max-w-2xl rounded-2xl p-6 shadow-2xl space-y-5 max-h-[85vh] flex flex-col">
                                 <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                                    <h3 className="text-base font-bold text-slate-800 flex items-center gap-2"><Cloud className="w-5 h-5 text-blue-500" /> Arsip & Kolaborasi Cloud</h3>
+                                    <h3 className="text-base font-bold text-slate-800 flex items-center gap-2"><Cloud className="w-5 h-5 text-blue-500" /> Arsip Kolaborasi Private</h3>
                                     <button onClick={() => setShowArchives(false)} className="text-slate-400 hover:text-slate-700 bg-slate-100 p-1.5 rounded-lg"><X className="w-4 h-4" /></button>
                                 </div>
-                                
                                 <div className="flex justify-between items-center bg-blue-50 p-4 rounded-xl border border-blue-100">
                                     <div className="text-sm text-blue-800">
-                                        <span className="font-bold block text-base mb-0.5">Simpan Proyek RCA Terpadu</span>
-                                        <span className="text-xs">Buat arsip baru di cloud untuk mengaktifkan kolaborasi real-time dengan tim (Fishbone + 5Whys + FTA).</span>
+                                        <span className="font-bold block text-base mb-0.5">Simpan Proyek Private Terpadu</span>
+                                        <span className="text-xs">Buat link baru yang terpisah dari Ruang Global. Berguna untuk menyimpan sesi/rapat berbeda.</span>
                                     </div>
-                                    <button onClick={saveAsNewArchive} className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition whitespace-nowrap shadow-sm flex items-center gap-2">
-                                        <Plus className="w-4 h-4" /> Simpan sbg Baru
-                                    </button>
+                                    <button onClick={saveAsNewArchive} className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition whitespace-nowrap shadow-sm flex items-center gap-2"><Plus className="w-4 h-4" /> Simpan Private</button>
                                 </div>
-
                                 <div className="overflow-y-auto flex-1 border border-slate-200 rounded-xl bg-slate-50 p-2 space-y-2">
-                                    {archives.length === 0 && (
-                                        <div className="text-center p-8 text-slate-500 text-sm font-medium">Belum ada arsip yang tersimpan di ruang kerja cloud.</div>
-                                    )}
-                                    {archives.map(arc => (
-                                        <div key={arc.id} className={`bg-white border p-4 rounded-xl flex items-center justify-between shadow-sm cursor-pointer transition ${activeDoc?.id === arc.id ? 'border-green-500 ring-1 ring-green-500' : 'border-slate-200 hover:border-blue-400'}`} onClick={() => loadArchive(arc)}>
+                                    {/* Menu Utama: Ruang Global */}
+                                    <div className={`bg-white border p-4 rounded-xl flex items-center justify-between shadow-sm cursor-pointer transition ${activeDoc?.id === 'global-live-workspace' ? 'border-green-500 ring-1 ring-green-500' : 'border-slate-200 hover:border-blue-400'}`} onClick={() => loadArchive({ id: 'global-live-workspace', name: 'Ruang Kerja Global (Publik)', problem: 'Ruang utama tempat setiap orang masuk pertama kali secara otomatis.' })}>
+                                        <div>
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">DEFAULT</span>
+                                                <span className="text-sm font-bold text-slate-800">Ruang Kerja Global (Publik)</span>
+                                                {activeDoc?.id === 'global-live-workspace' && <span className="text-[10px] font-bold text-green-700 flex items-center gap-1 bg-green-100 px-1.5 py-0.5 rounded"><Users className="w-3 h-3"/> Sedang Aktif (Live)</span>}
+                                            </div>
+                                            <div className="text-xs text-slate-500 truncate max-w-md">Ruang utama yang dibuka otomatis saat tidak ada parameter link.</div>
+                                        </div>
+                                    </div>
+                                    
+                                    {archives.filter(arc => arc.id !== 'global-live-workspace').map(arc => (
+                                        <div key={arc.id} className={`bg-white border p-4 rounded-xl flex items-center justify-between shadow-sm cursor-pointer transition ${activeDoc?.id === arc.id ? 'border-blue-500 ring-1 ring-blue-500' : 'border-slate-200 hover:border-blue-400'}`} onClick={() => loadArchive(arc)}>
                                             <div>
                                                 <div className="flex items-center gap-2 mb-1">
-                                                    <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">RCA SUITE</span>
+                                                    <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200">PRIVATE</span>
                                                     <span className="text-sm font-bold text-slate-800">{arc.name}</span>
-                                                    {activeDoc?.id === arc.id && <span className="text-[10px] font-bold text-green-700 flex items-center gap-1 bg-green-100 px-1.5 py-0.5 rounded"><Users className="w-3 h-3"/> Sedang Aktif (Live)</span>}
+                                                    {activeDoc?.id === arc.id && <span className="text-[10px] font-bold text-blue-700 flex items-center gap-1 bg-blue-100 px-1.5 py-0.5 rounded"><Users className="w-3 h-3"/> Aktif</span>}
                                                 </div>
                                                 <div className="text-xs text-slate-500 truncate max-w-md">{arc.problem}</div>
                                             </div>
                                             <div className="flex items-center gap-4">
-                                                <div className="text-[10px] text-slate-400 text-right font-medium">
-                                                    {new Date(arc.updatedAt).toLocaleDateString('id-ID', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'})}
-                                                </div>
+                                                <div className="text-[10px] text-slate-400 text-right font-medium">{new Date(arc.updatedAt).toLocaleDateString('id-ID', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'})}</div>
                                                 <button onClick={(e) => deleteArchive(arc.id, e)} className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"><Trash2 className="w-4 h-4" /></button>
                                             </div>
                                         </div>
