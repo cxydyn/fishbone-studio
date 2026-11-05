@@ -13,6 +13,12 @@
     
     <!-- HTML2Canvas untuk Export PNG Alat Non-SVG (5Whys & FTA) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    
+    <!-- SheetJS untuk Export ke Excel (.xlsx) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <!-- html2pdf untuk langsung Download PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
     <!-- Import Map for React and Lucide Icons -->
     <script type="importmap">
@@ -35,7 +41,8 @@
             ZoomIn, ZoomOut, RotateCcw, Plus, Download, Printer,
             Sparkles, Info, Layers, ChevronDown, Edit2, Check, X,
             HelpCircle, Eye, EyeOff, Bot, Wand2, Loader2, Trash2, FileText, Move,
-            Network, ListEnd, AlignEndHorizontal, Cloud, CloudOff, Users, Share2, Globe, LogOut
+            Network, ListEnd, AlignEndHorizontal, Cloud, CloudOff, Users, Share2, Globe, LogOut, CheckCircle2, XCircle,
+            FileSpreadsheet, FileDown
         } from 'lucide-react';
 
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -69,37 +76,38 @@
                     { 
                         id: 'cat-1', name: 'Man (Tenaga Kerja)', color: '#2563EB', 
                         causes: [
-                            { text: 'Kurang pelatihan berkala', subCause: 'Operator shift malam belum lulus sertifikasi mesin presisi', actionPlan: 'Wajibkan sertifikasi ulang per kuartal dan buat matriks keahlian operator.' }
+                            { text: 'Kurang pelatihan berkala', subCause: 'Operator shift malam belum lulus sertifikasi mesin presisi', actionPlan: 'Wajibkan sertifikasi ulang per kuartal.', validity: 'valid' },
+                            { text: 'Sengaja melanggar prosedur', subCause: 'Operator sengaja mematikan sensor', actionPlan: 'Beri SP3.', validity: 'invalid' }
                         ] 
                     },
                     { 
                         id: 'cat-2', name: 'Machine (Mesin)', color: '#059669', 
                         causes: [
-                            { text: 'Presisi hidrolik puncher turun', subCause: 'Seal silinder hidrolik aus akibat suhu oli melebihi 65°C', actionPlan: 'Ganti seal tahan panas dan pasang modul chiller pendingin.' }
+                            { text: 'Presisi hidrolik puncher turun', subCause: 'Seal silinder hidrolik aus akibat suhu oli melebihi 65°C', actionPlan: 'Ganti seal tahan panas.', validity: 'pending' }
                         ] 
                     },
                     { 
                         id: 'cat-3', name: 'Method (Metode)', color: '#D97706', 
                         causes: [
-                            { text: 'SOP pemeliharaan usang', subCause: 'Parameter inspeksi cetakan masih mengacu pada mesin tipe lama', actionPlan: 'Revisi Work Instruction dan buat checklist digital.' }
+                            { text: 'SOP pemeliharaan usang', subCause: 'Parameter inspeksi cetakan masih mengacu pada mesin tipe lama', actionPlan: 'Revisi Work Instruction dan buat checklist digital.', validity: 'pending' }
                         ] 
                     },
                     { 
                         id: 'cat-4', name: 'Material (Bahan Baku)', color: '#DB2777', 
                         causes: [
-                            { text: 'Ketebalan pelat lewat toleransi', subCause: 'Deviasi bahan supplier ±0.15 mm dari ambang 0.05 mm', actionPlan: 'Perketat kriteria penerimaan material dan terbitkan CAR.' }
+                            { text: 'Ketebalan pelat lewat toleransi', subCause: 'Deviasi bahan supplier ±0.15 mm dari ambang 0.05 mm', actionPlan: 'Perketat kriteria penerimaan material.', validity: 'pending' }
                         ] 
                     },
                     { 
                         id: 'cat-5', name: 'Measurement (Pengukuran)', color: '#7C3AED', 
                         causes: [
-                            { text: 'Sensor tidak terkalibrasi', subCause: 'Sensor ultrasonik telat kalibrasi 45 hari dan tertutup kabut oli', actionPlan: 'Kalibrasi ulang sensor dan bersihkan lensa optik harian.' }
+                            { text: 'Sensor tidak terkalibrasi', subCause: 'Sensor ultrasonik telat kalibrasi 45 hari', actionPlan: 'Kalibrasi ulang sensor.', validity: 'pending' }
                         ] 
                     },
                     { 
                         id: 'cat-6', name: 'Milieu / Environment (Lingkungan)', color: '#0891B2', 
                         causes: [
-                            { text: 'Kelembapan ruang produksi tinggi', subCause: 'Kelembapan 85% memicu bintik karat mikro pada cetakan cadangan', actionPlan: 'Pasang dehumidifier dan perbaiki ventilasi aktif.' }
+                            { text: 'Kelembapan ruang produksi tinggi', subCause: 'Kelembapan 85% memicu karat mikro', actionPlan: 'Pasang dehumidifier.', validity: 'pending' }
                         ] 
                     }
                 ]
@@ -140,6 +148,7 @@
                             text: isObj ? item.text : item,
                             subCause: isObj ? (item.subCause || '') : '',
                             actionPlan: isObj ? (item.actionPlan || '') : '',
+                            validity: isObj ? (item.validity || 'pending') : 'pending',
                             pic: isObj ? (item.pic || '') : '',
                             dueDate: isObj ? (item.dueDate || '') : '',
                             offsetX: 0, offsetY: 0, customWidth: null,
@@ -176,7 +185,7 @@
             // --- DATA STATE ---
             const [data, setData] = useState(() => formatPresetData(PRESETS['6M']));
             const [fiveWhys, setFiveWhys] = useState({ problem: "Masalah...", whys: ["Why 1..."], rootCause: "", actionPlan: "" });
-            const [ftaData, setFtaData] = useState({ id: 'root', type: 'top', text: 'Top Event', gate: 'OR', children: [] });
+            const [ftaData, setFtaData] = useState({ id: 'root', type: 'top', text: 'Top Event', gate: 'OR', validity: 'pending', children: [] });
 
             const [zoom, setZoom] = useState(1);
             const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -204,6 +213,7 @@
             const svgRef = useRef(null);
             const whysRef = useRef(null);
             const ftaRef = useRef(null);
+            const mainContentRef = useRef(null);
 
             const showToast = (msg) => {
                 setToastMsg(msg);
@@ -244,42 +254,31 @@
                 if (sessionId && userName && user) {
                     joinRoom(sessionId, "Ruang Kolaborasi");
                 }
-            }, [user]); // Only run when user is authenticated
+            }, [user]);
 
             // --- LOGIKA PRESENCE & HEARTBEAT ---
             useEffect(() => {
                 if (!inRoom || !activeRoomId || !user || !userName) return;
-
                 const presenceRef = doc(db, 'artifacts', appId, 'public', 'data', 'rca_archives', activeRoomId, 'presence', user.uid);
-                
                 const ping = async () => {
                     try { await setDoc(presenceRef, { name: userName, lastActive: Date.now() }, { merge: true }); } 
                     catch(e) { console.error("Presence ping failed", e); }
                 };
+                ping(); 
+                const interval = setInterval(ping, 10000); 
 
-                ping(); // Initial ping
-                const interval = setInterval(ping, 10000); // Ping every 10 seconds
-
-                // Listener untuk melihat siapa saja yang online
                 const presenceCollRef = collection(db, 'artifacts', appId, 'public', 'data', 'rca_archives', activeRoomId, 'presence');
                 const unsub = onSnapshot(presenceCollRef, (snap) => {
                     const now = Date.now();
                     const activeUsers = [];
                     snap.forEach(d => {
                         const data = d.data();
-                        // Filter out users who haven't pinged in 25 seconds
-                        if (now - data.lastActive < 25000) {
-                            activeUsers.push({ uid: d.id, name: data.name });
-                        }
+                        if (now - data.lastActive < 25000) activeUsers.push({ uid: d.id, name: data.name });
                     });
                     setParticipants(activeUsers);
                 });
 
-                return () => {
-                    clearInterval(interval);
-                    unsub();
-                    deleteDoc(presenceRef).catch(()=>{}); // Try to delete on unmount/leave
-                };
+                return () => { clearInterval(interval); unsub(); deleteDoc(presenceRef).catch(()=>{}); };
             }, [inRoom, activeRoomId, user, userName]);
 
             // Listener Sinkronisasi Data Konten Ruangan
@@ -298,7 +297,6 @@
                             if (parsed.ftaData) setFtaData(parsed.ftaData);
                         } catch(e) { console.error("Parse error", e); }
                     } else {
-                        // Room deleted
                         leaveRoom();
                         showToast("Ruangan telah dihapus.");
                     }
@@ -309,75 +307,117 @@
             // Sync Otomatis Lokal ke Cloud (Debounced)
             useEffect(() => {
                 if (!user || !activeRoomId || !inRoom) return;
-                if (isRemoteUpdate.current) {
-                    isRemoteUpdate.current = false;
-                    return;
-                }
+                if (isRemoteUpdate.current) { isRemoteUpdate.current = false; return; }
                 const save = async () => {
                     const payload = JSON.stringify({ fishbone: data, fiveWhys, ftaData });
                     try {
                         const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'rca_archives', activeRoomId);
-                        await setDoc(docRef, { 
-                            name: activeRoomName || 'Ruang RCA',
-                            problem: data.problem,
-                            payload, 
-                            updatedAt: new Date().toISOString() 
-                        }, { merge: true });
+                        await setDoc(docRef, { name: activeRoomName || 'Ruang RCA', problem: data.problem, payload, updatedAt: new Date().toISOString() }, { merge: true });
                     } catch (e) { console.error("Sync error", e); }
                 };
                 const timeoutId = setTimeout(save, 400);
                 return () => clearTimeout(timeoutId);
             }, [data, fiveWhys, ftaData, activeRoomId, inRoom, user, activeRoomName]);
 
+            // --- EXPORT FUNCTIONS ---
+            
+            // Export Excel (SheetJS)
+            const exportExcel = () => {
+                if (!window.XLSX) {
+                    showToast("Library Excel belum dimuat.");
+                    return;
+                }
+                const rows = [];
+                data.categories.forEach(cat => {
+                    cat.causes.forEach(cause => {
+                        rows.push({
+                            'Kategori': cat.name,
+                            'Penyebab Utama': cause.text,
+                            'Sub-Cause Detail': cause.subCause,
+                            'Validasi': cause.validity === 'valid' ? 'Valid' : cause.validity === 'invalid' ? 'Tidak Valid' : 'Belum Diuji',
+                            'Rencana Tindakan (Action Plan)': cause.actionPlan,
+                            'PIC': cause.pic,
+                            'Due Date': cause.dueDate
+                        });
+                    });
+                });
+                
+                const worksheet = XLSX.utils.json_to_sheet(rows);
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, "CAPA Fishbone");
+                XLSX.writeFile(workbook, `RCA-Action-Plan-${Date.now()}.xlsx`);
+                showToast("Berhasil mengunduh file Excel!");
+            };
+
+            // Export Direct PDF (html2pdf)
+            const exportPDF = () => {
+                if (!window.html2pdf || !mainContentRef.current) {
+                    showToast("Library PDF belum siap.");
+                    return;
+                }
+                setIsExporting(true);
+                showToast("Sedang membuat PDF, mohon tunggu...");
+                
+                const element = mainContentRef.current;
+                const noPrintElements = element.querySelectorAll('.no-print');
+                noPrintElements.forEach(el => el.style.display = 'none');
+                
+                // Set background of canvas explicitly for PDF capture
+                const svgBg = element.querySelector('.canvas-outer-bg');
+                if (svgBg) {
+                    svgBg.setAttribute('fill', '#ffffff');
+                    svgBg.setAttribute('stroke', '#e2e8f0');
+                }
+
+                const opt = {
+                    margin:       [10, 10, 10, 10], // top, left, bottom, right
+                    filename:     `RCA-Report-${activeTab.toUpperCase()}-${Date.now()}.pdf`,
+                    image:        { type: 'jpeg', quality: 0.98 },
+                    html2canvas:  { scale: 2, useCORS: true, backgroundColor: '#f8fafc', windowWidth: element.scrollWidth },
+                    jsPDF:        { unit: 'mm', format: 'a4', orientation: activeTab === 'fishbone' ? 'landscape' : 'portrait' }
+                };
+
+                html2pdf().set(opt).from(element).save().then(() => {
+                    noPrintElements.forEach(el => el.style.display = ''); // Kembalikan elemen no-print
+                    setIsExporting(false);
+                }).catch((e) => {
+                    console.error("PDF generation error:", e);
+                    noPrintElements.forEach(el => el.style.display = '');
+                    setIsExporting(false);
+                    showToast("Gagal membuat PDF.");
+                });
+            };
+
+
             // --- LOBBY ACTIONS ---
             const joinRoom = (id, name) => {
                 if (!userName.trim()) { showToast("Silakan masukkan nama Anda terlebih dahulu."); return; }
                 localStorage.setItem('rca_username', userName);
-                setActiveRoomId(id);
-                setActiveRoomName(name);
-                setInRoom(true);
-                
+                setActiveRoomId(id); setActiveRoomName(name); setInRoom(true);
                 const url = new URL(window.location.href);
                 url.searchParams.set('session', id);
                 window.history.replaceState(null, '', url.toString());
             };
 
             const leaveRoom = () => {
-                setInRoom(false);
-                setActiveRoomId(null);
+                setInRoom(false); setActiveRoomId(null);
                 const url = new URL(window.location.href);
                 url.searchParams.delete('session');
                 window.history.replaceState(null, '', url.toString());
             };
 
             const createNewRoom = async () => {
-                if (!userName.trim()) { showToast("Silakan masukkan nama Anda terlebih dahulu."); return; }
+                if (!userName.trim()) { showToast("Silakan masukkan nama Anda."); return; }
                 if (!newRoomName.trim()) { showToast("Nama ruang tidak boleh kosong."); return; }
-                
                 localStorage.setItem('rca_username', userName);
                 const initialData = formatPresetData(PRESETS['6M']);
                 initialData.problem = newRoomProblem || 'Masalah Baru';
                 const payload = JSON.stringify({ fishbone: initialData, fiveWhys, ftaData });
-
                 try {
                     const collRef = collection(db, 'artifacts', appId, 'public', 'data', 'rca_archives');
-                    const newDoc = await addDoc(collRef, {
-                        name: newRoomName,
-                        problem: initialData.problem,
-                        payload,
-                        createdAt: new Date().toISOString(),
-                        updatedAt: new Date().toISOString(),
-                        createdBy: user.uid
-                    });
-                    
-                    setShowNewRoomForm(false);
-                    setNewRoomName('');
-                    setNewRoomProblem('');
-                    joinRoom(newDoc.id, newRoomName);
-                } catch(e) {
-                    console.error(e);
-                    showToast("Gagal membuat ruang. Cek koneksi Anda.");
-                }
+                    const newDoc = await addDoc(collRef, { name: newRoomName, problem: initialData.problem, payload, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), createdBy: user.uid });
+                    setShowNewRoomForm(false); setNewRoomName(''); setNewRoomProblem(''); joinRoom(newDoc.id, newRoomName);
+                } catch(e) { showToast("Gagal membuat ruang. Cek koneksi Anda."); }
             };
 
             const deleteRoom = async (id, e) => {
@@ -385,26 +425,21 @@
                 if (!confirm("Hapus ruangan ini secara permanen?")) return;
                 try {
                     const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'rca_archives', id);
-                    await deleteDoc(docRef);
-                    showToast("Ruangan dihapus.");
+                    await deleteDoc(docRef); showToast("Ruangan dihapus.");
                 } catch(e) { console.error(e); }
             };
 
             const handleShare = async () => {
                 try {
-                    const textArea = document.createElement("textarea");
-                    textArea.value = window.location.href; 
-                    document.body.appendChild(textArea);
-                    textArea.select();
-                    document.execCommand("copy");
-                    document.body.removeChild(textArea);
+                    const textArea = document.createElement("textarea"); textArea.value = window.location.href; 
+                    document.body.appendChild(textArea); textArea.select(); document.execCommand("copy"); document.body.removeChild(textArea);
                     showToast('Link ruangan disalin! Bagikan ke tim Anda.');
                 } catch(e) { console.error('Copy failed', e); }
             };
 
             // INTERAKSI POINTER UNTUK FISHBONE
             const handlePointerDown = (e) => {
-                if (e.target.closest('button') || e.target.closest('.no-pan') || e.target.closest('input') || e.target.closest('textarea') || e.target.closest('td') || editingItem) return;
+                if (e.target.closest('button') || e.target.closest('.no-pan') || e.target.closest('input') || e.target.closest('textarea') || e.target.closest('td') || e.target.closest('select') || editingItem) return;
                 setIsPanning(true);
                 setStartPan({ x: e.clientX - pan.x, y: e.clientY - pan.y });
                 setHighlightedCause(null);
@@ -414,16 +449,11 @@
                 if (dragItem) {
                     const dx = (e.clientX - dragItem.startX) / zoom;
                     const dy = (e.clientY - dragItem.startY) / zoom;
-                    if (dragItem.type === 'resize') {
-                        setTempOffsets({ [dragItem.id]: { dw: dx } });
-                    } else {
-                        setTempOffsets({ [dragItem.id]: { dx, dy } });
-                    }
+                    if (dragItem.type === 'resize') { setTempOffsets({ [dragItem.id]: { dw: dx } }); } 
+                    else { setTempOffsets({ [dragItem.id]: { dx, dy } }); }
                     return;
                 }
-                if (isPanning) {
-                    setPan({ x: e.clientX - startPan.x, y: e.clientY - startPan.y });
-                }
+                if (isPanning) setPan({ x: e.clientX - startPan.x, y: e.clientY - startPan.y });
             };
 
             const handlePointerUp = () => {
@@ -433,44 +463,26 @@
                     setData((prev) => {
                         const next = { ...prev };
                         if (dragItem.type === 'problem') {
-                            next.problemOffsetX = (next.problemOffsetX || 0) + (offsets.dx || 0);
-                            next.problemOffsetY = (next.problemOffsetY || 0) + (offsets.dy || 0);
+                            next.problemOffsetX = (next.problemOffsetX || 0) + (offsets.dx || 0); next.problemOffsetY = (next.problemOffsetY || 0) + (offsets.dy || 0);
                         } else {
                             next.categories = next.categories.map((c) => {
                                 if (c.id === dragItem.catId || c.id === dragItem.id) {
                                     const nextCat = { ...c };
                                     if (dragItem.type === 'cat' && dragItem.id === c.id) {
-                                        nextCat.offsetX = (nextCat.offsetX || 0) + (offsets.dx || 0);
-                                        nextCat.offsetY = (nextCat.offsetY || 0) + (offsets.dy || 0);
+                                        nextCat.offsetX = (nextCat.offsetX || 0) + (offsets.dx || 0); nextCat.offsetY = (nextCat.offsetY || 0) + (offsets.dy || 0);
                                     }
                                     if (dragItem.type === 'cat_bone' && dragItem.catId === c.id) {
-                                        nextCat.boneOffsetX = (nextCat.boneOffsetX || 0) + (offsets.dx || 0);
-                                        nextCat.boneOffsetY = (nextCat.boneOffsetY || 0) + (offsets.dy || 0);
+                                        nextCat.boneOffsetX = (nextCat.boneOffsetX || 0) + (offsets.dx || 0); nextCat.boneOffsetY = (nextCat.boneOffsetY || 0) + (offsets.dy || 0);
                                     }
                                     if (dragItem.catId === c.id) {
                                         nextCat.causes = nextCat.causes.map(cause => {
-                                            const isMatchingCause =
-                                                (dragItem.type === 'cause' && dragItem.id === cause.id) ||
-                                                (dragItem.type === 'cause_joint' && dragItem.id === `joint-${cause.id}`) ||
-                                                (dragItem.type === 'subcause' && dragItem.id === `sub-${cause.id}`) ||
-                                                (dragItem.type === 'resize' && dragItem.id === `resize-${cause.id}`);
-
+                                            const isMatchingCause = (dragItem.type === 'cause' && dragItem.id === cause.id) || (dragItem.type === 'cause_joint' && dragItem.id === `joint-${cause.id}`) || (dragItem.type === 'subcause' && dragItem.id === `sub-${cause.id}`) || (dragItem.type === 'resize' && dragItem.id === `resize-${cause.id}`);
                                             if (isMatchingCause) {
                                                 const updatedCause = { ...cause };
-                                                if (dragItem.type === 'cause') {
-                                                    updatedCause.offsetX = (cause.offsetX || 0) + (offsets.dx || 0);
-                                                    updatedCause.offsetY = (cause.offsetY || 0) + (offsets.dy || 0);
-                                                }
-                                                else if (dragItem.type === 'cause_joint') {
-                                                    updatedCause.jointOffsetRatio = (cause.jointOffsetRatio || 0) + (offsets.dy || 0) / 180;
-                                                }
-                                                else if (dragItem.type === 'subcause') {
-                                                    updatedCause.subOffsetX = (cause.subOffsetX || 0) + (offsets.dx || 0);
-                                                    updatedCause.subOffsetY = (cause.subOffsetY || 0) + (offsets.dy || 0);
-                                                }
-                                                else if (dragItem.type === 'resize') {
-                                                    updatedCause.customWidth = Math.max(100, (cause.customWidth || dragItem.startWidth) + (offsets.dw || 0));
-                                                }
+                                                if (dragItem.type === 'cause') { updatedCause.offsetX = (cause.offsetX || 0) + (offsets.dx || 0); updatedCause.offsetY = (cause.offsetY || 0) + (offsets.dy || 0); }
+                                                else if (dragItem.type === 'cause_joint') { updatedCause.jointOffsetRatio = (cause.jointOffsetRatio || 0) + (offsets.dy || 0) / 180; }
+                                                else if (dragItem.type === 'subcause') { updatedCause.subOffsetX = (cause.subOffsetX || 0) + (offsets.dx || 0); updatedCause.subOffsetY = (cause.subOffsetY || 0) + (offsets.dy || 0); }
+                                                else if (dragItem.type === 'resize') { updatedCause.customWidth = Math.max(100, (cause.customWidth || dragItem.startWidth) + (offsets.dw || 0)); }
                                                 return updatedCause;
                                             }
                                             return cause;
@@ -483,26 +495,22 @@
                         }
                         return next;
                     });
-                    setDragItem(null);
-                    setTempOffsets({});
+                    setDragItem(null); setTempOffsets({});
                 }
             };
 
             const startDrag = (e, type, id, catId = null, causeId = null) => {
-                e.stopPropagation();
-                setDragItem({ type, id, catId, causeId, startX: e.clientX, startY: e.clientY });
+                e.stopPropagation(); setDragItem({ type, id, catId, causeId, startX: e.clientX, startY: e.clientY });
                 if (type === 'cause' || type === 'subcause') setHighlightedCause(causeId || id);
             };
 
             const startResize = (e, id, catId, currentWidth) => {
-                e.stopPropagation();
-                setDragItem({ type: 'resize', id: `resize-${id}`, catId, startX: e.clientX, startWidth: currentWidth });
+                e.stopPropagation(); setDragItem({ type: 'resize', id: `resize-${id}`, catId, startX: e.clientX, startWidth: currentWidth });
             };
 
             const handleWheel = (e) => {
                 if (e.ctrlKey || e.metaKey) {
-                    e.preventDefault();
-                    const zoomFactor = e.deltaY < 0 ? 1.08 : 0.92;
+                    e.preventDefault(); const zoomFactor = e.deltaY < 0 ? 1.08 : 0.92;
                     setZoom((z) => Math.min(2.5, Math.max(0.4, z * zoomFactor)));
                 }
             };
@@ -513,9 +521,7 @@
                 setData((prev) => ({
                     ...prev,
                     categories: prev.categories.map((c) => {
-                        if (c.id === catId) {
-                            return { ...c, causes: [...c.causes, { id: `cause-${Date.now()}`, text: 'Penyebab baru', subCause: 'Rincian sub-cause lanjutan...', actionPlan: '', pic: '', dueDate: '', offsetX: 0, offsetY: 0, subOffsetX: 0, subOffsetY: 0, jointOffsetRatio: 0, customWidth: null }] };
-                        }
+                        if (c.id === catId) return { ...c, causes: [...c.causes, { id: `cause-${Date.now()}`, text: 'Penyebab baru', subCause: 'Rincian sub-cause lanjutan...', actionPlan: '', validity: 'pending', pic: '', dueDate: '', offsetX: 0, offsetY: 0, subOffsetX: 0, subOffsetY: 0, jointOffsetRatio: 0, customWidth: null }] };
                         return c;
                     })
                 }));
@@ -526,11 +532,7 @@
                 setData((prev) => ({
                     ...prev,
                     categories: prev.categories.map((c) => {
-                        if (c.id === catId) {
-                            const nextCauses = [...c.causes];
-                            nextCauses.splice(causeIdx, 1);
-                            return { ...c, causes: nextCauses };
-                        }
+                        if (c.id === catId) { const nextCauses = [...c.causes]; nextCauses.splice(causeIdx, 1); return { ...c, causes: nextCauses }; }
                         return c;
                     })
                 }));
@@ -540,15 +542,7 @@
                 setData((prev) => ({
                     ...prev,
                     categories: prev.categories.map((c) => {
-                        if (c.id === catId) {
-                            return {
-                                ...c,
-                                causes: c.causes.map((cause) => {
-                                    if (cause.id === causeId) return { ...cause, [field]: value };
-                                    return cause;
-                                })
-                            };
-                        }
+                        if (c.id === catId) return { ...c, causes: c.causes.map((cause) => cause.id === causeId ? { ...cause, [field]: value } : cause) };
                         return c;
                     })
                 }));
@@ -561,11 +555,7 @@
                     categories: prev.categories.map((c) => {
                         if (c.id === editingItem.catId) {
                             const updatedCauses = [...c.causes];
-                            updatedCauses[editingItem.causeIndex] = {
-                                ...updatedCauses[editingItem.causeIndex],
-                                text: newText.trim() || updatedCauses[editingItem.causeIndex].text,
-                                subCause: newSubCause.trim()
-                            };
+                            updatedCauses[editingItem.causeIndex] = { ...updatedCauses[editingItem.causeIndex], text: newText.trim() || updatedCauses[editingItem.causeIndex].text, subCause: newSubCause.trim() };
                             return { ...c, causes: updatedCauses };
                         }
                         return c;
@@ -575,15 +565,9 @@
             };
 
             // CRUD OPERATIONS 5 WHYS
-            const updateWhy = (idx, value) => {
-                const newWhys = [...fiveWhys.whys]; newWhys[idx] = value;
-                setFiveWhys({...fiveWhys, whys: newWhys});
-            };
+            const updateWhy = (idx, value) => { const newWhys = [...fiveWhys.whys]; newWhys[idx] = value; setFiveWhys({...fiveWhys, whys: newWhys}); };
             const addWhy = () => setFiveWhys({...fiveWhys, whys: [...fiveWhys.whys, ""]});
-            const removeWhy = (idx) => {
-                const newWhys = [...fiveWhys.whys]; newWhys.splice(idx, 1);
-                setFiveWhys({...fiveWhys, whys: newWhys});
-            };
+            const removeWhy = (idx) => { const newWhys = [...fiveWhys.whys]; newWhys.splice(idx, 1); setFiveWhys({...fiveWhys, whys: newWhys}); };
 
             // CRUD OPERATIONS FTA
             const updateFTANode = (node, id, field, value) => {
@@ -593,7 +577,7 @@
             };
             const addChildFTANode = (node, id, type) => {
                 if (node.id === id) {
-                    const newChild = { id: `n-${Date.now()}`, type, text: type === 'basic' ? 'Basic Event' : 'Intermediate Event', gate: type === 'intermediate' ? 'OR' : undefined, children: type === 'intermediate' ? [] : undefined };
+                    const newChild = { id: `n-${Date.now()}`, type, text: type === 'basic' ? 'Basic Event' : 'Intermediate Event', gate: type === 'intermediate' ? 'OR' : undefined, validity: 'pending', children: type === 'intermediate' ? [] : undefined };
                     return { ...node, children: [...(node.children || []), newChild] };
                 }
                 if (node.children) { return { ...node, children: node.children.map(c => addChildFTANode(c, id, type)) }; }
@@ -615,16 +599,34 @@
                 const textLen = node.text ? node.text.length : 0;
                 const lineBreaks = node.text ? (node.text.match(/\n/g) || []).length : 0;
                 const calcRows = Math.max(2, lineBreaks + 1, Math.ceil(textLen / 18));
+                
+                let boxClass = node.type === 'basic' ? 'w-40 min-h-[9rem] rounded-[3rem] border-red-500 bg-red-50' : 'w-40 md:w-48 min-h-[6rem] rounded-lg border-blue-600 bg-white';
+                let textClass = 'text-slate-800';
+
+                if (node.validity === 'valid') {
+                    boxClass = node.type === 'basic' ? 'w-40 min-h-[9rem] rounded-[3rem] border-green-500 bg-green-50' : 'w-40 md:w-48 min-h-[6rem] rounded-lg border-green-500 bg-green-50';
+                    textClass = 'text-green-900';
+                } else if (node.validity === 'invalid') {
+                    boxClass = node.type === 'basic' ? 'w-40 min-h-[9rem] rounded-[3rem] border-slate-300 bg-slate-100 opacity-60' : 'w-40 md:w-48 min-h-[6rem] rounded-lg border-slate-300 bg-slate-100 opacity-60';
+                    textClass = 'text-slate-500 line-through';
+                }
 
                 return (
                     <li key={node.id}>
                         <div className="flex flex-col items-center">
                             <div className="relative group">
-                                <div className={`text-center p-3 border-2 shadow-sm relative z-10 transition-colors flex flex-col justify-center items-center ${node.type === 'basic' ? 'w-40 min-h-[9rem] rounded-[3rem] border-red-500 bg-red-50' : 'w-40 md:w-48 min-h-[6rem] rounded-lg border-blue-600 bg-white'}`}>
+                                <div className={`text-center p-3 border-2 shadow-sm relative z-10 transition-colors flex flex-col justify-center items-center ${boxClass}`}>
                                     <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{node.type}</div>
-                                    <textarea value={node.text} onChange={(e) => handleFTAUpdate(node.id, 'text', e.target.value)} rows={calcRows} className="w-full bg-transparent text-sm font-semibold text-center outline-none resize-none overflow-hidden" placeholder="Tulis event..." />
+                                    <textarea value={node.text} onChange={(e) => handleFTAUpdate(node.id, 'text', e.target.value)} rows={calcRows} className={`w-full bg-transparent text-sm font-semibold text-center outline-none resize-none overflow-hidden ${textClass}`} placeholder="Tulis event..." />
+                                    {node.validity === 'valid' && <CheckCircle2 className="w-5 h-5 text-green-500 absolute -top-2 -right-2 bg-white rounded-full" />}
+                                    {node.validity === 'invalid' && <XCircle className="w-5 h-5 text-slate-400 absolute -top-2 -right-2 bg-white rounded-full" />}
                                     
-                                    <div className="absolute top-0 right-0 translate-x-full opacity-0 group-hover:opacity-100 transition-opacity bg-white border border-slate-200 shadow-xl rounded-lg p-1.5 ml-2 flex flex-col gap-1 z-50 w-32 no-print">
+                                    <div className="absolute top-0 right-0 translate-x-full opacity-0 group-hover:opacity-100 transition-opacity bg-white border border-slate-200 shadow-xl rounded-lg p-1.5 ml-2 flex flex-col gap-1 z-50 w-36 no-print">
+                                        <div className="flex gap-1 mb-1 border-b border-slate-100 pb-1.5">
+                                            <button onClick={() => handleFTAUpdate(node.id, 'validity', 'valid')} className="flex-1 py-1 text-center bg-green-50 text-green-600 rounded hover:bg-green-100" title="Valid">✅</button>
+                                            <button onClick={() => handleFTAUpdate(node.id, 'validity', 'invalid')} className="flex-1 py-1 text-center bg-red-50 text-red-600 rounded hover:bg-red-100" title="Tidak Valid">❌</button>
+                                            <button onClick={() => handleFTAUpdate(node.id, 'validity', 'pending')} className="flex-1 py-1 text-center bg-slate-50 text-slate-600 rounded hover:bg-slate-100" title="Reset">↻</button>
+                                        </div>
                                         {node.type !== 'basic' && (
                                             <>
                                                 <button onClick={() => handleFTAAddChild(node.id, 'intermediate')} className="text-[10px] text-left font-semibold text-blue-700 hover:bg-blue-50 px-2 py-1.5 rounded transition">+ Intermediate</button>
@@ -678,7 +680,7 @@
                                     const isObj = typeof item === 'object' && item !== null;
                                     return {
                                         id: `c-${Date.now()}-${i}-${j}`, text: isObj ? (item.text || 'Penyebab') : item, subCause: isObj ? (item.subCause || '') : '',
-                                        actionPlan: isObj ? (item.actionPlan || '') : '', pic: '', dueDate: '', offsetX: 0, offsetY: 0, subOffsetX: 0, subOffsetY: 0, jointOffsetRatio: 0
+                                        actionPlan: isObj ? (item.actionPlan || '') : '', validity: 'pending', pic: '', dueDate: '', offsetX: 0, offsetY: 0, subOffsetX: 0, subOffsetY: 0, jointOffsetRatio: 0
                                     };
                                 })
                             };
@@ -691,35 +693,6 @@
                     }
                     setShowAIModal(false); setAiPrompt(''); setZoom(1); setPan({ x: 0, y: 0 });
                 } catch (err) { setAiError(err.message); } finally { setIsGenerating(false); }
-            };
-
-            const exportPNG = () => {
-                setIsExporting(true);
-                if (activeTab === 'fishbone' && svgRef.current) {
-                    try {
-                        const svgElement = svgRef.current.cloneNode(true);
-                        svgElement.querySelectorAll('.no-print').forEach(el => el.remove());
-                        svgElement.querySelectorAll('.canvas-outer-bg').forEach(el => { el.setAttribute('fill', '#ffffff'); el.setAttribute('stroke', '#e2e8f0'); });
-                        const svgBlob = new Blob([new XMLSerializer().serializeToString(svgElement)], { type: 'image/svg+xml;charset=utf-8' });
-                        const blobURL = URL.createObjectURL(svgBlob);
-                        const img = new Image();
-                        img.onload = () => {
-                            const canvas = document.createElement('canvas'); canvas.width = SVG_WIDTH * 2; canvas.height = SVG_HEIGHT * 2;
-                            const ctx = canvas.getContext('2d'); ctx.scale(2, 2);
-                            ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, SVG_WIDTH, SVG_HEIGHT); ctx.drawImage(img, 0, 0, SVG_WIDTH, SVG_HEIGHT);
-                            const link = document.createElement('a'); link.download = `Fishbone-${Date.now()}.png`; link.href = canvas.toDataURL('image/png'); link.click();
-                            URL.revokeObjectURL(blobURL); setIsExporting(false);
-                        }; img.src = blobURL;
-                    } catch(e) { setIsExporting(false); }
-                } else {
-                    const targetRef = activeTab === '5whys' ? whysRef.current : ftaRef.current;
-                    if (targetRef) {
-                        html2canvas(targetRef, { backgroundColor: '#f8fafc', scale: 2 }).then(canvas => {
-                            const link = document.createElement('a'); link.download = `${activeTab.toUpperCase()}-${Date.now()}.png`; link.href = canvas.toDataURL('image/png'); link.click();
-                            setIsExporting(false);
-                        }).catch(() => setIsExporting(false));
-                    } else { setIsExporting(false); }
-                }
             };
 
             const topCategories = data.categories.filter((_, idx) => idx % 2 === 0);
@@ -892,9 +865,16 @@
                                 <Bot className="w-4 h-4" /><span className="hidden lg:inline">AI Generate</span>
                             </button>
                             <div className="h-5 w-px bg-slate-300 mx-1 hidden sm:block" />
-                            <button onClick={exportPNG} className="hidden sm:flex items-center px-3 py-1.5 text-sm font-medium bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 rounded-lg transition">
-                                <Download className="w-4 h-4 text-emerald-600 md:mr-1.5" /><span className="hidden lg:inline">Export PNG</span>
+                            
+                            <button onClick={exportPDF} disabled={isExporting} className="hidden sm:flex items-center px-3 py-1.5 text-sm font-medium bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 rounded-lg transition">
+                                {isExporting ? <Loader2 className="w-4 h-4 text-emerald-600 md:mr-1.5 animate-spin" /> : <FileDown className="w-4 h-4 text-emerald-600 md:mr-1.5" />}
+                                <span className="hidden lg:inline">Download PDF</span>
                             </button>
+
+                            <button onClick={() => window.print()} className="hidden xl:flex items-center px-3 py-1.5 text-sm font-medium bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 rounded-lg transition">
+                                <Printer className="w-4 h-4 text-purple-600" />
+                            </button>
+
                             <button onClick={leaveRoom} className="flex items-center space-x-1.5 px-3 py-1.5 text-sm font-medium bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg transition ml-1">
                                 <LogOut className="w-4 h-4" /><span className="hidden sm:inline">Keluar</span>
                             </button>
@@ -907,245 +887,289 @@
                         <button onClick={() => setActiveTab('fta')} className={`flex-1 px-4 py-3 text-sm font-semibold border-b-2 whitespace-nowrap transition ${activeTab === 'fta' ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500'}`}>Fault Tree</button>
                     </div>
 
-                    {/* TOOL 1: FISHBONE */}
-                    {activeTab === 'fishbone' && (
-                        <div className="flex flex-col flex-1 animate-in fade-in duration-300">
-                            <div ref={containerRef} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onWheel={handleWheel} className={`relative w-full h-[62vh] shrink-0 bg-slate-50 overflow-hidden flex items-center justify-center border-b border-slate-200 shadow-inner cursor-${isPanning ? 'grabbing' : 'grab'} print-wrapper`}>
-                                <div id="canvas-bg" className="absolute inset-0 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:24px_24px] opacity-60 pointer-events-none" />
-                                
-                                <div className="absolute bottom-4 left-4 flex items-center bg-white border border-slate-200 rounded-xl p-1 shadow-sm z-20 no-print">
-                                    <button onClick={() => setZoom(z => Math.min(2.2, z + 0.15))} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600"><ZoomIn className="w-4 h-4" /></button>
-                                    <span className="text-xs font-mono px-2 text-slate-500 w-12 text-center">{Math.round(zoom * 100)}%</span>
-                                    <button onClick={() => setZoom(z => Math.max(0.4, z - 0.15))} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600"><ZoomOut className="w-4 h-4" /></button>
-                                    <div className="h-4 w-px bg-slate-200 mx-1" />
-                                    <button onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600"><RotateCcw className="w-4 h-4" /></button>
-                                </div>
+                    {/* WRAPPER UNTUK PDF EXPORT */}
+                    <div ref={mainContentRef} className="flex flex-col flex-1 h-full w-full relative">
+                        {/* TOOL 1: FISHBONE */}
+                        {activeTab === 'fishbone' && (
+                            <div className="flex flex-col flex-1 animate-in fade-in duration-300">
+                                <div ref={containerRef} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onWheel={handleWheel} className={`relative w-full h-[62vh] shrink-0 bg-slate-50 overflow-hidden flex items-center justify-center border-b border-slate-200 shadow-inner cursor-${isPanning ? 'grabbing' : 'grab'} print-wrapper`}>
+                                    <div id="canvas-bg" className="absolute inset-0 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:24px_24px] opacity-60 pointer-events-none" />
+                                    
+                                    <div className="absolute bottom-4 left-4 flex items-center bg-white border border-slate-200 rounded-xl p-1 shadow-sm z-20 no-print">
+                                        <button onClick={() => setZoom(z => Math.min(2.2, z + 0.15))} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600"><ZoomIn className="w-4 h-4" /></button>
+                                        <span className="text-xs font-mono px-2 text-slate-500 w-12 text-center">{Math.round(zoom * 100)}%</span>
+                                        <button onClick={() => setZoom(z => Math.max(0.4, z - 0.15))} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600"><ZoomOut className="w-4 h-4" /></button>
+                                        <div className="h-4 w-px bg-slate-200 mx-1" />
+                                        <button onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600"><RotateCcw className="w-4 h-4" /></button>
+                                    </div>
 
-                                <div className="absolute top-3 left-4 text-xs text-slate-500 pointer-events-none no-print flex items-center gap-1.5 bg-white/80 backdrop-blur px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm">
-                                    <Move className="w-3.5 h-3.5 text-blue-600" />
-                                    <span><b>Bebas Geser Independen:</b> Tarik titik bulat persendian untuk menggeser posisi cabang di tulang utama. Kotak sub-cause dan cause bisa ditarik ke segala arah.</span>
-                                </div>
+                                    <div className="absolute top-3 left-4 text-xs text-slate-500 pointer-events-none no-print flex items-center gap-1.5 bg-white/80 backdrop-blur px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm">
+                                        <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
+                                        <span>Tandai status Validasi di tabel bawah, dan warna kotak di diagram akan ikut berubah.</span>
+                                    </div>
 
-                                <div style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, transformOrigin: 'center center', transition: isPanning ? 'none' : 'transform 0.1s ease-out' }} className="relative diagram-scalable-wrapper">
-                                    <svg ref={svgRef} width={SVG_WIDTH} height={SVG_HEIGHT} viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`} className="overflow-visible filter drop-shadow-md">
-                                        <defs><marker id="spine-arrow-light" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#64748b" /></marker></defs>
-                                        <rect x="16" y="16" width={SVG_WIDTH - 32} height={SVG_HEIGHT - 32} rx="20" fill="#ffffff" stroke="#e2e8f0" strokeWidth="2" className="canvas-outer-bg" />
+                                    <div style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, transformOrigin: 'center center', transition: isPanning ? 'none' : 'transform 0.1s ease-out' }} className="relative diagram-scalable-wrapper">
+                                        <svg ref={svgRef} width={SVG_WIDTH} height={SVG_HEIGHT} viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`} className="overflow-visible filter drop-shadow-md">
+                                            <defs><marker id="spine-arrow-light" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#64748b" /></marker></defs>
+                                            <rect x="16" y="16" width={SVG_WIDTH - 32} height={SVG_HEIGHT - 32} rx="20" fill="#ffffff" stroke="#e2e8f0" strokeWidth="2" className="canvas-outer-bg" />
 
-                                        <g className="fish-tail">
-                                            <path d={`M ${SPINE_START_X} ${SPINE_Y} L ${SPINE_START_X - 55} ${SPINE_Y - 50} Q ${SPINE_START_X - 70} ${SPINE_Y} ${SPINE_START_X - 55} ${SPINE_Y + 50} Z`} fill="#f1f5f9" stroke="#94a3b8" strokeWidth="2.5" />
-                                            <path d={`M ${SPINE_START_X - 15} ${SPINE_Y - 20} L ${SPINE_START_X - 45} ${SPINE_Y - 35}`} stroke="#cbd5e1" strokeWidth="2" />
-                                            <path d={`M ${SPINE_START_X - 15} ${SPINE_Y + 20} L ${SPINE_START_X - 45} ${SPINE_Y + 35}`} stroke="#cbd5e1" strokeWidth="2" />
-                                        </g>
-                                        <line x1={SPINE_START_X} y1={SPINE_Y} x2={SPINE_END_X} y2={SPINE_Y} stroke="#94a3b8" strokeWidth="4.5" strokeLinecap="round" markerEnd="url(#spine-arrow-light)" />
+                                            <g className="fish-tail">
+                                                <path d={`M ${SPINE_START_X} ${SPINE_Y} L ${SPINE_START_X - 55} ${SPINE_Y - 50} Q ${SPINE_START_X - 70} ${SPINE_Y} ${SPINE_START_X - 55} ${SPINE_Y + 50} Z`} fill="#f1f5f9" stroke="#94a3b8" strokeWidth="2.5" />
+                                                <path d={`M ${SPINE_START_X - 15} ${SPINE_Y - 20} L ${SPINE_START_X - 45} ${SPINE_Y - 35}`} stroke="#cbd5e1" strokeWidth="2" />
+                                                <path d={`M ${SPINE_START_X - 15} ${SPINE_Y + 20} L ${SPINE_START_X - 45} ${SPINE_Y + 35}`} stroke="#cbd5e1" strokeWidth="2" />
+                                            </g>
+                                            <line x1={SPINE_START_X} y1={SPINE_Y} x2={SPINE_END_X} y2={SPINE_Y} stroke="#94a3b8" strokeWidth="4.5" strokeLinecap="round" markerEnd="url(#spine-arrow-light)" />
 
-                                        {[topCategories, bottomCategories].map((cats, isBottomIdx) => {
-                                            const isTop = isBottomIdx === 0;
-                                            return cats.map((cat, idx) => {
-                                                const { baseX, baseY, tipX, tipY } = getRibMetrics(idx, cats.length, isTop);
-                                                const bDx = (cat.boneOffsetX||0) + (tempOffsets[`bone-${cat.id}`]?.dx||0); const bDy = (cat.boneOffsetY||0) + (tempOffsets[`bone-${cat.id}`]?.dy||0);
-                                                const actualBaseX = baseX + bDx, actualBaseY = baseY + bDy, actualTipX = tipX + bDx + (cat.offsetX||0) + (tempOffsets[cat.id]?.dx||0), actualTipY = tipY + bDy + (cat.offsetY||0) + (tempOffsets[cat.id]?.dy||0);
+                                            {[topCategories, bottomCategories].map((cats, isBottomIdx) => {
+                                                const isTop = isBottomIdx === 0;
+                                                return cats.map((cat, idx) => {
+                                                    const { baseX, baseY, tipX, tipY } = getRibMetrics(idx, cats.length, isTop);
+                                                    const bDx = (cat.boneOffsetX||0) + (tempOffsets[`bone-${cat.id}`]?.dx||0); const bDy = (cat.boneOffsetY||0) + (tempOffsets[`bone-${cat.id}`]?.dy||0);
+                                                    const actualBaseX = baseX + bDx, actualBaseY = baseY + bDy, actualTipX = tipX + bDx + (cat.offsetX||0) + (tempOffsets[cat.id]?.dx||0), actualTipY = tipY + bDy + (cat.offsetY||0) + (tempOffsets[cat.id]?.dy||0);
 
-                                                return (
-                                                    <g key={cat.id}>
-                                                        <g className="cursor-grab active:cursor-grabbing group" onPointerDown={(e) => startDrag(e, 'cat_bone', `bone-${cat.id}`, cat.id)}>
-                                                            <line x1={actualBaseX} y1={actualBaseY} x2={actualTipX} y2={actualTipY} stroke="transparent" strokeWidth="20" />
-                                                            <line x1={actualBaseX} y1={actualBaseY} x2={actualTipX} y2={actualTipY} stroke={cat.color} strokeWidth="3.5" strokeLinecap="round" />
-                                                            <circle cx={actualBaseX} cy={actualBaseY} r="6" fill="#ffffff" stroke={cat.color} strokeWidth="3" className="hover:scale-125 transition-transform" />
+                                                    return (
+                                                        <g key={cat.id}>
+                                                            <g className="cursor-grab active:cursor-grabbing group" onPointerDown={(e) => startDrag(e, 'cat_bone', `bone-${cat.id}`, cat.id)}>
+                                                                <line x1={actualBaseX} y1={actualBaseY} x2={actualTipX} y2={actualTipY} stroke="transparent" strokeWidth="20" />
+                                                                <line x1={actualBaseX} y1={actualBaseY} x2={actualTipX} y2={actualTipY} stroke={cat.color} strokeWidth="3.5" strokeLinecap="round" />
+                                                                <circle cx={actualBaseX} cy={actualBaseY} r="6" fill="#ffffff" stroke={cat.color} strokeWidth="3" className="hover:scale-125 transition-transform" />
+                                                            </g>
+
+                                                            {cat.causes.map((cause, cIdx) => {
+                                                                const baseRatio = (cIdx + 1) / (cat.causes.length + 1);
+                                                                const jointRatio = Math.max(0.15, Math.min(0.85, baseRatio + (cause.jointOffsetRatio || 0)));
+                                                                
+                                                                const jointDx = tempOffsets[`joint-${cause.id}`]?.dx || 0; const jointDy = tempOffsets[`joint-${cause.id}`]?.dy || 0;
+                                                                const jointX = actualBaseX + (actualTipX - actualBaseX) * jointRatio + jointDx;
+                                                                const jointY = actualBaseY + (actualTipY - actualBaseY) * jointRatio + jointDy;
+
+                                                                const cDx = tempOffsets[cause.id]?.dx || 0; const cDy = tempOffsets[cause.id]?.dy || 0; const cDw = tempOffsets[`resize-${cause.id}`]?.dw || 0;
+                                                                const causeW = Math.max(120, (cause.customWidth || 140) + cDw);
+                                                                const causeLines = wrapText(cause.text || '', Math.floor((causeW - 20) / 7.2));
+                                                                const causeH = Math.max(32, causeLines.length * 14 + 14);
+
+                                                                const causeBoxX = (jointX - 110 - causeW) + (cause.offsetX || 0) + cDx;
+                                                                const causeBoxY = (jointY - causeH / 2) + (cause.offsetY || 0) + cDy;
+                                                                const causeAnchorX = causeBoxX + causeW; const causeAnchorY = causeBoxY + causeH / 2;
+
+                                                                const subOriginX = (jointX + causeAnchorX) / 2; const subOriginY = (jointY + causeAnchorY) / 2;
+                                                                const subDx = tempOffsets[`sub-${cause.id}`]?.dx || 0; const subDy = tempOffsets[`sub-${cause.id}`]?.dy || 0;
+
+                                                                const subW = Math.max(130, 150 + cDw);
+                                                                const subLines = wrapText(cause.subCause || '(Klik 2x isi detail)', Math.floor((subW - 24) / 6.2));
+                                                                const subH = Math.max(26, subLines.length * 12 + 14);
+
+                                                                const subBoxX = (jointX - 110 - subW) + (cause.subOffsetX || 0) + subDx;
+                                                                const subBoxY = (jointY + (isTop ? -55 : 55)) + (cause.subOffsetY || 0) + subDy;
+                                                                const subAnchorX = subBoxX + subW; const subAnchorY = subBoxY + subH / 2;
+                                                                const isHighlighted = highlightedCause === cause.id;
+
+                                                                // TEMA VALIDASI
+                                                                let boxFill = isHighlighted ? '#FEF9C3' : '#ffffff';
+                                                                let boxStroke = isHighlighted ? '#F59E0B' : cat.color;
+                                                                let textColor = '#0f172a';
+                                                                let textStyle = 'normal';
+                                                                let validIcon = null;
+
+                                                                if (cause.validity === 'valid') {
+                                                                    boxFill = '#DCFCE7'; // bg-green-100
+                                                                    boxStroke = '#16A34A'; // border-green-600
+                                                                    textColor = '#14532D'; // text-green-900
+                                                                    validIcon = '✅';
+                                                                } else if (cause.validity === 'invalid') {
+                                                                    boxFill = '#F1F5F9'; // bg-slate-100
+                                                                    boxStroke = '#94A3B8'; // border-slate-400
+                                                                    textColor = '#64748B'; // text-slate-500
+                                                                    textStyle = 'line-through';
+                                                                    validIcon = '❌';
+                                                                }
+
+                                                                return (
+                                                                    <g key={cause.id} className="cause-hierarchical-group">
+                                                                        <line x1={jointX} y1={jointY} x2={causeAnchorX} y2={causeAnchorY} stroke={cat.color} strokeWidth="2.5" strokeLinecap="round" />
+                                                                        <circle cx={jointX} cy={jointY} r="4.5" fill="#ffffff" stroke={cat.color} strokeWidth="2.5" className="cursor-ns-resize no-print hover:scale-150 transition-transform" onPointerDown={(e) => startDrag(e, 'cause_joint', `joint-${cause.id}`, cat.id, cause.id)} />
+
+                                                                        <line x1={subOriginX} y1={subOriginY} x2={subAnchorX} y2={subAnchorY} stroke="#64748B" strokeWidth="1.8" strokeDasharray="3 2" strokeLinecap="round" />
+                                                                        <circle cx={subOriginX} cy={subOriginY} r="3" fill="#64748B" />
+
+                                                                        <g className="cursor-grab active:cursor-grabbing group/sub" onPointerDown={(e) => startDrag(e, 'subcause', `sub-${cause.id}`, cat.id, cause.id)} onDoubleClick={(e) => { e.stopPropagation(); setEditingItem({ catId: cat.id, causeIndex: cIdx, text: cause.text, subCause: cause.subCause || '' }); }}>
+                                                                            <rect x={subBoxX} y={subBoxY} width={subW} height={subH} rx="4" fill="#F8FAFC" stroke="#94A3B8" strokeWidth="1.2" className="shadow-xs hover:stroke-blue-500 hover:shadow-md transition" />
+                                                                            <path d={`M ${subBoxX} ${subBoxY} L ${subBoxX + 3.5} ${subBoxY} L ${subBoxX + 3.5} ${subBoxY + subH} L ${subBoxX} ${subBoxY + subH} Z`} fill="#64748B" />
+                                                                            <text x={subBoxX + 8} y={subBoxY + 11} fill={cat.color} fontSize="8" fontWeight="800" letterSpacing="0.04em">↳ SUB-CAUSE:</text>
+                                                                            {subLines.map((sLine, sIdx) => <text key={sIdx} x={subBoxX + 8} y={subBoxY + 22 + sIdx * 12} fill="#334155" fontSize="9" fontFamily="sans-serif" fontStyle="italic" className="pointer-events-none">{sLine}</text>)}
+                                                                        </g>
+
+                                                                        <g className="cursor-grab active:cursor-grabbing group/cause" onPointerDown={(e) => startDrag(e, 'cause', cause.id, cat.id, cause.id)} onDoubleClick={(e) => { e.stopPropagation(); setEditingItem({ catId: cat.id, causeIndex: cIdx, text: cause.text, subCause: cause.subCause || '' }); }}>
+                                                                            {isHighlighted && <rect x={causeBoxX-3} y={causeBoxY-3} width={causeW+6} height={causeH+6} rx="8" fill="none" stroke="#FBBF24" strokeWidth="3" className="animate-pulse" />}
+                                                                            <rect x={causeBoxX} y={causeBoxY} width={causeW} height={causeH} rx="5" fill={boxFill} stroke={boxStroke} strokeWidth="1.8" className="shadow-sm hover:shadow-md transition" />
+                                                                            <rect x={causeBoxX} y={causeBoxY} width="4" height={causeH} rx="2" fill={boxStroke} />
+                                                                            {causeLines.map((line, lIdx) => <text key={lIdx} x={causeBoxX + 10} y={causeBoxY + 14 + lIdx * 14} fill={textColor} fontSize="10.5" fontFamily="sans-serif" fontWeight="700" textDecoration={textStyle} className="pointer-events-none">{line}</text>)}
+                                                                            {validIcon && <text x={causeBoxX + causeW - 16} y={causeBoxY + 14} fontSize="10" className="pointer-events-none">{validIcon}</text>}
+                                                                            
+                                                                            <path d={`M ${causeBoxX+causeW-10} ${causeBoxY+causeH} L ${causeBoxX+causeW} ${causeBoxY+causeH} L ${causeBoxX+causeW} ${causeBoxY+causeH-10} Z`} fill="#cbd5e1" className="cursor-nwse-resize no-print hover:fill-blue-500" onPointerDown={(e) => startResize(e, cause.id, cat.id, causeW)} />
+                                                                            <g className="opacity-0 hover:opacity-100 transition no-print cursor-pointer" onPointerDown={e => e.stopPropagation()} onClick={e => handleDeleteCause(cat.id, cIdx, e)}><rect x={causeBoxX+causeW-18} y={causeBoxY-8} width="16" height="16" rx="8" fill="#ef4444" /><text x={causeBoxX+causeW-14} y={causeBoxY+4} fill="#fff" fontSize="10" fontWeight="bold">×</text></g>
+                                                                        </g>
+                                                                    </g>
+                                                                );
+                                                            })}
+
+                                                            {(() => {
+                                                                const lines = wrapText(cat.name, 18);
+                                                                const catW = Math.max(120, Math.max(...lines.map(l => l.length)) * 8 + 40);
+                                                                const catH = lines.length * 16 + 16;
+                                                                const cBoxX = actualTipX - catW/2, cBoxY = isTop ? actualTipY - catH - 5 : actualTipY + 5;
+                                                                return (
+                                                                    <g className="cursor-grab active:cursor-grabbing" onPointerDown={e => startDrag(e, 'cat', cat.id)}>
+                                                                        <rect x={cBoxX} y={cBoxY} width={catW} height={catH} rx="6" fill="#ffffff" stroke={cat.color} strokeWidth="2.5" className="shadow-sm hover:shadow-md transition" />
+                                                                        {lines.map((l, i) => <text key={i} x={cBoxX + 12} y={cBoxY + 20 + i*16} fill="#0f172a" fontSize="12" fontWeight="bold" fontFamily="sans-serif" className="pointer-events-none">{l}</text>)}
+                                                                        <g className="cursor-pointer hover:opacity-80 no-print" onPointerDown={e=>e.stopPropagation()} onClick={e=>handleAddCause(cat.id, e)}><circle cx={cBoxX+catW-26} cy={cBoxY+catH/2} r="8" fill="#f1f5f9" stroke="#cbd5e1" /><text x={cBoxX+catW-26} y={cBoxY+catH/2+4} textAnchor="middle" fill="#475569" fontSize="12" fontWeight="bold">+</text></g>
+                                                                        <g className="cursor-pointer hover:opacity-80 no-print" onPointerDown={e=>e.stopPropagation()} onClick={e=>handleDeleteCategory(cat.id, e)}><circle cx={cBoxX+catW-8} cy={cBoxY+catH/2} r="8" fill="#fee2e2" stroke="#fca5a5" /><text x={cBoxX+catW-8} y={cBoxY+catH/2+3} textAnchor="middle" fill="#ef4444" fontSize="10" fontWeight="bold">×</text></g>
+                                                                    </g>
+                                                                );
+                                                            })()}
                                                         </g>
+                                                    );
+                                                });
+                                            })}
 
-                                                        {cat.causes.map((cause, cIdx) => {
-                                                            const baseRatio = (cIdx + 1) / (cat.causes.length + 1);
-                                                            const jointRatio = Math.max(0.15, Math.min(0.85, baseRatio + (cause.jointOffsetRatio || 0)));
-                                                            
-                                                            const jointDx = tempOffsets[`joint-${cause.id}`]?.dx || 0; const jointDy = tempOffsets[`joint-${cause.id}`]?.dy || 0;
-                                                            const jointX = actualBaseX + (actualTipX - actualBaseX) * jointRatio + jointDx;
-                                                            const jointY = actualBaseY + (actualTipY - actualBaseY) * jointRatio + jointDy;
-
-                                                            const cDx = tempOffsets[cause.id]?.dx || 0; const cDy = tempOffsets[cause.id]?.dy || 0; const cDw = tempOffsets[`resize-${cause.id}`]?.dw || 0;
-                                                            const causeW = Math.max(120, (cause.customWidth || 140) + cDw);
-                                                            const causeLines = wrapText(cause.text || '', Math.floor((causeW - 20) / 7.2));
-                                                            const causeH = Math.max(32, causeLines.length * 14 + 14);
-
-                                                            const causeBoxX = (jointX - 110 - causeW) + (cause.offsetX || 0) + cDx;
-                                                            const causeBoxY = (jointY - causeH / 2) + (cause.offsetY || 0) + cDy;
-                                                            const causeAnchorX = causeBoxX + causeW; const causeAnchorY = causeBoxY + causeH / 2;
-
-                                                            const subOriginX = (jointX + causeAnchorX) / 2; const subOriginY = (jointY + causeAnchorY) / 2;
-                                                            const subDx = tempOffsets[`sub-${cause.id}`]?.dx || 0; const subDy = tempOffsets[`sub-${cause.id}`]?.dy || 0;
-
-                                                            const subW = Math.max(130, 150 + cDw);
-                                                            const subLines = wrapText(cause.subCause || '(Klik 2x isi detail)', Math.floor((subW - 24) / 6.2));
-                                                            const subH = Math.max(26, subLines.length * 12 + 14);
-
-                                                            const subBoxX = (jointX - 110 - subW) + (cause.subOffsetX || 0) + subDx;
-                                                            const subBoxY = (jointY + (isTop ? -55 : 55)) + (cause.subOffsetY || 0) + subDy;
-                                                            const subAnchorX = subBoxX + subW; const subAnchorY = subBoxY + subH / 2;
-                                                            const isHighlighted = highlightedCause === cause.id;
-
-                                                            return (
-                                                                <g key={cause.id} className="cause-hierarchical-group">
-                                                                    <line x1={jointX} y1={jointY} x2={causeAnchorX} y2={causeAnchorY} stroke={cat.color} strokeWidth="2.5" strokeLinecap="round" />
-                                                                    <circle cx={jointX} cy={jointY} r="4.5" fill="#ffffff" stroke={cat.color} strokeWidth="2.5" className="cursor-ns-resize no-print hover:scale-150 transition-transform" onPointerDown={(e) => startDrag(e, 'cause_joint', `joint-${cause.id}`, cat.id, cause.id)} />
-
-                                                                    <line x1={subOriginX} y1={subOriginY} x2={subAnchorX} y2={subAnchorY} stroke="#64748B" strokeWidth="1.8" strokeDasharray="3 2" strokeLinecap="round" />
-                                                                    <circle cx={subOriginX} cy={subOriginY} r="3" fill="#64748B" />
-
-                                                                    <g className="cursor-grab active:cursor-grabbing group/sub" onPointerDown={(e) => startDrag(e, 'subcause', `sub-${cause.id}`, cat.id, cause.id)} onDoubleClick={(e) => { e.stopPropagation(); setEditingItem({ catId: cat.id, causeIndex: cIdx, text: cause.text, subCause: cause.subCause || '' }); }}>
-                                                                        <rect x={subBoxX} y={subBoxY} width={subW} height={subH} rx="4" fill="#F8FAFC" stroke="#94A3B8" strokeWidth="1.2" className="shadow-xs hover:stroke-blue-500 hover:shadow-md transition" />
-                                                                        <path d={`M ${subBoxX} ${subBoxY} L ${subBoxX + 3.5} ${subBoxY} L ${subBoxX + 3.5} ${subBoxY + subH} L ${subBoxX} ${subBoxY + subH} Z`} fill="#64748B" />
-                                                                        <text x={subBoxX + 8} y={subBoxY + 11} fill={cat.color} fontSize="8" fontWeight="800" letterSpacing="0.04em">↳ SUB-CAUSE:</text>
-                                                                        {subLines.map((sLine, sIdx) => <text key={sIdx} x={subBoxX + 8} y={subBoxY + 22 + sIdx * 12} fill="#334155" fontSize="9" fontFamily="sans-serif" fontStyle="italic" className="pointer-events-none">{sLine}</text>)}
-                                                                    </g>
-
-                                                                    <g className="cursor-grab active:cursor-grabbing group/cause" onPointerDown={(e) => startDrag(e, 'cause', cause.id, cat.id, cause.id)} onDoubleClick={(e) => { e.stopPropagation(); setEditingItem({ catId: cat.id, causeIndex: cIdx, text: cause.text, subCause: cause.subCause || '' }); }}>
-                                                                        {isHighlighted && <rect x={causeBoxX-3} y={causeBoxY-3} width={causeW+6} height={causeH+6} rx="8" fill="none" stroke="#FBBF24" strokeWidth="3" className="animate-pulse" />}
-                                                                        <rect x={causeBoxX} y={causeBoxY} width={causeW} height={causeH} rx="5" fill={isHighlighted ? '#FEF9C3' : '#ffffff'} stroke={isHighlighted ? '#F59E0B' : cat.color} strokeWidth="1.8" className="shadow-sm hover:stroke-blue-600 hover:shadow-md transition" />
-                                                                        <rect x={causeBoxX} y={causeBoxY} width="4" height={causeH} rx="2" fill={cat.color} />
-                                                                        {causeLines.map((line, lIdx) => <text key={lIdx} x={causeBoxX + 10} y={causeBoxY + 14 + lIdx * 14} fill="#0f172a" fontSize="10.5" fontFamily="sans-serif" fontWeight="700" className="pointer-events-none">{line}</text>)}
-                                                                        <path d={`M ${causeBoxX+causeW-10} ${causeBoxY+causeH} L ${causeBoxX+causeW} ${causeBoxY+causeH} L ${causeBoxX+causeW} ${causeBoxY+causeH-10} Z`} fill="#cbd5e1" className="cursor-nwse-resize no-print hover:fill-blue-500" onPointerDown={(e) => startResize(e, cause.id, cat.id, causeW)} />
-                                                                        <g className="opacity-0 hover:opacity-100 transition no-print cursor-pointer" onPointerDown={e => e.stopPropagation()} onClick={e => handleDeleteCause(cat.id, cIdx, e)}><rect x={causeBoxX+causeW-18} y={causeBoxY-8} width="16" height="16" rx="8" fill="#ef4444" /><text x={causeBoxX+causeW-14} y={causeBoxY+4} fill="#fff" fontSize="10" fontWeight="bold">×</text></g>
-                                                                    </g>
-                                                                </g>
-                                                            );
-                                                        })}
-
-                                                        {(() => {
-                                                            const lines = wrapText(cat.name, 18);
-                                                            const catW = Math.max(120, Math.max(...lines.map(l => l.length)) * 8 + 40);
-                                                            const catH = lines.length * 16 + 16;
-                                                            const cBoxX = actualTipX - catW/2, cBoxY = isTop ? actualTipY - catH - 5 : actualTipY + 5;
-                                                            return (
-                                                                <g className="cursor-grab active:cursor-grabbing" onPointerDown={e => startDrag(e, 'cat', cat.id)}>
-                                                                    <rect x={cBoxX} y={cBoxY} width={catW} height={catH} rx="6" fill="#ffffff" stroke={cat.color} strokeWidth="2.5" className="shadow-sm hover:shadow-md transition" />
-                                                                    {lines.map((l, i) => <text key={i} x={cBoxX + 12} y={cBoxY + 20 + i*16} fill="#0f172a" fontSize="12" fontWeight="bold" fontFamily="sans-serif" className="pointer-events-none">{l}</text>)}
-                                                                    <g className="cursor-pointer hover:opacity-80 no-print" onPointerDown={e=>e.stopPropagation()} onClick={e=>handleAddCause(cat.id, e)}><circle cx={cBoxX+catW-26} cy={cBoxY+catH/2} r="8" fill="#f1f5f9" stroke="#cbd5e1" /><text x={cBoxX+catW-26} y={cBoxY+catH/2+4} textAnchor="middle" fill="#475569" fontSize="12" fontWeight="bold">+</text></g>
-                                                                    <g className="cursor-pointer hover:opacity-80 no-print" onPointerDown={e=>e.stopPropagation()} onClick={e=>handleDeleteCategory(cat.id, e)}><circle cx={cBoxX+catW-8} cy={cBoxY+catH/2} r="8" fill="#fee2e2" stroke="#fca5a5" /><text x={cBoxX+catW-8} y={cBoxY+catH/2+3} textAnchor="middle" fill="#ef4444" fontSize="10" fontWeight="bold">×</text></g>
-                                                                </g>
-                                                            );
-                                                        })()}
-                                                    </g>
-                                                );
-                                            });
-                                        })}
-
-                                        <g className="cursor-grab active:cursor-grabbing" transform={`translate(${(data.problemOffsetX||0)+(tempOffsets['problem']?.dx||0)}, ${(data.problemOffsetY||0)+(tempOffsets['problem']?.dy||0)})`} onPointerDown={e => startDrag(e, 'problem', 'problem')}>
-                                            <path d={`M ${SPINE_END_X} ${SPINE_Y - 95} C ${SPINE_END_X + 90} ${SPINE_Y - 95}, ${SPINE_END_X + 170} ${SPINE_Y - 55}, ${SPINE_END_X + 220} ${SPINE_Y} C ${SPINE_END_X + 170} ${SPINE_Y + 55}, ${SPINE_END_X + 90} ${SPINE_Y + 95}, ${SPINE_END_X} ${SPINE_Y + 95} Z`} fill="#ffffff" stroke="#2563eb" strokeWidth="2.5" className="drop-shadow-md" />
-                                            <circle cx={SPINE_END_X + 175} cy={SPINE_Y - 35} r="6" fill="#3b82f6" />
-                                            <rect x={SPINE_END_X - 5} y={SPINE_Y - 50} width="170" height="100" rx="8" fill="#f8fafc" stroke="#bfdbfe" strokeWidth="1.5" />
-                                            <text x={SPINE_END_X + 10} y={SPINE_Y - 32} fill="#2563eb" fontSize="10" fontWeight="bold" fontFamily="sans-serif" className="pointer-events-none">MASALAH (EFFECT)</text>
-                                            {wrapText(data.problem, 20).slice(0,4).map((line, i) => <text key={i} x={SPINE_END_X + 10} y={SPINE_Y - 12 + i*16} fill="#0f172a" fontSize="12" fontWeight="700" fontFamily="sans-serif" className="pointer-events-none">{line}</text>)}
-                                        </g>
-                                    </svg>
-                                </div>
-                            </div>
-
-                            <div className="flex-1 w-full max-w-7xl mx-auto p-4 md:p-8 table-wrapper bg-slate-50 space-y-6">
-                                {data.conclusion && (
-                                    <div className="bg-white border border-blue-200 rounded-xl p-5 shadow-sm flex items-start gap-4">
-                                        <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl shrink-0 mt-0.5"><FileText className="w-5 h-5" /></div>
-                                        <div className="flex-1">
-                                            <h3 className="text-xs font-bold text-blue-800 uppercase tracking-wider mb-1">Executive Conclusion (Sintesis RCA)</h3>
-                                            <textarea rows="2" value={data.conclusion} onChange={(e) => setData(prev => ({ ...prev, conclusion: e.target.value }))} className="w-full text-sm text-slate-700 bg-transparent outline-none resize-none font-medium leading-relaxed" />
-                                        </div>
-                                    </div>
-                                )}
-                                <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-                                    <div className="px-6 py-4 border-b border-slate-200 flex flex-wrap gap-4 justify-between items-center bg-white">
-                                        <div><h2 className="text-lg font-bold text-[#005073] uppercase tracking-wide">Corrective Action Plan (CAPA)</h2></div>
-                                        <button onClick={() => { if(data.categories.length > 0) handleAddCause(data.categories[0].id); }} className="bg-[#059669] hover:bg-[#047857] text-white px-4 py-2 rounded-lg text-sm font-medium transition no-print"><Plus className="w-4 h-4 inline mr-1" /> Tambah Baris Manual</button>
-                                    </div>
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full text-sm text-left border-collapse">
-                                            <thead className="bg-[#005073] text-white">
-                                                <tr>
-                                                    <th className="border-b border-slate-300 p-3 font-semibold w-40">Category</th>
-                                                    <th className="border-b border-slate-300 p-3 font-semibold w-64">Main Cause</th>
-                                                    <th className="border-b border-slate-300 p-3 font-semibold min-w-[280px]">Sub Cause</th>
-                                                    <th className="border-b border-slate-300 p-3 font-semibold min-w-[280px]">Corrective Action Plan</th>
-                                                    <th className="border-b border-slate-300 p-3 font-semibold w-28">PIC</th>
-                                                    <th className="border-b border-slate-300 p-3 font-semibold w-28">Due Date</th>
-                                                    <th className="border-b border-slate-300 p-3 font-semibold w-12 text-center no-print">Act</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-slate-200 bg-white">
-                                                {data.categories.map((cat) => (
-                                                    cat.causes.map((cause, idx) => {
-                                                        const isHighlighted = highlightedCause === cause.id;
-                                                        return (
-                                                            <tr key={cause.id} onClick={() => setHighlightedCause(cause.id)} className={`transition-colors cursor-pointer ${isHighlighted ? 'bg-yellow-50/80 ring-1 ring-yellow-400 inset-0' : 'hover:bg-slate-50'}`}>
-                                                                {idx === 0 && (
-                                                                    <td rowSpan={cat.causes.length} className="border-r border-slate-200 p-3 align-top bg-slate-50/50">
-                                                                        <input value={cat.name} onChange={(e) => { const val = e.target.value; setData(prev => ({ ...prev, categories: prev.categories.map(c => c.id === cat.id ? { ...c, name: val } : c) })); }} className="w-full bg-transparent font-bold text-slate-700 outline-none focus:border-b border-blue-500" />
-                                                                    </td>
-                                                                )}
-                                                                <td className="p-2 border-r border-slate-200 align-top"><textarea rows="3" value={cause.text} onChange={(e) => handleTableEdit(cat.id, cause.id, 'text', e.target.value)} className={`w-full bg-transparent outline-none resize-none p-1 font-medium ${isHighlighted ? 'text-yellow-900' : 'text-slate-800'}`} /></td>
-                                                                <td className="p-2 border-r border-slate-200 align-top"><textarea rows="4" value={cause.subCause} onChange={(e) => handleTableEdit(cat.id, cause.id, 'subCause', e.target.value)} className="w-full bg-transparent outline-none p-1 text-slate-600 text-xs" /></td>
-                                                                <td className="p-2 border-r border-slate-200 align-top"><textarea rows="4" value={cause.actionPlan} onChange={(e) => handleTableEdit(cat.id, cause.id, 'actionPlan', e.target.value)} className="w-full bg-transparent outline-none p-1 text-slate-700 text-xs" /></td>
-                                                                <td className="p-2 border-r border-slate-200 align-top"><input type="text" value={cause.pic} onChange={(e) => handleTableEdit(cat.id, cause.id, 'pic', e.target.value)} className="w-full bg-transparent outline-none p-1 text-slate-600 text-xs" /></td>
-                                                                <td className="p-2 border-r border-slate-200 align-top"><input type="date" value={cause.dueDate} onChange={(e) => handleTableEdit(cat.id, cause.id, 'dueDate', e.target.value)} className="w-full bg-transparent outline-none p-1 text-slate-600 text-xs" /></td>
-                                                                <td className="p-2 text-center align-top no-print"><button onClick={(e) => handleDeleteCause(cat.id, idx, e)} className="text-red-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 transition"><Trash2 className="w-4 h-4" /></button></td>
-                                                            </tr>
-                                                        );
-                                                    })
-                                                ))}
-                                            </tbody>
-                                        </table>
+                                            <g className="cursor-grab active:cursor-grabbing" transform={`translate(${(data.problemOffsetX||0)+(tempOffsets['problem']?.dx||0)}, ${(data.problemOffsetY||0)+(tempOffsets['problem']?.dy||0)})`} onPointerDown={e => startDrag(e, 'problem', 'problem')}>
+                                                <path d={`M ${SPINE_END_X} ${SPINE_Y - 95} C ${SPINE_END_X + 90} ${SPINE_Y - 95}, ${SPINE_END_X + 170} ${SPINE_Y - 55}, ${SPINE_END_X + 220} ${SPINE_Y} C ${SPINE_END_X + 170} ${SPINE_Y + 55}, ${SPINE_END_X + 90} ${SPINE_Y + 95}, ${SPINE_END_X} ${SPINE_Y + 95} Z`} fill="#ffffff" stroke="#2563eb" strokeWidth="2.5" className="drop-shadow-md" />
+                                                <circle cx={SPINE_END_X + 175} cy={SPINE_Y - 35} r="6" fill="#3b82f6" />
+                                                <rect x={SPINE_END_X - 5} y={SPINE_Y - 50} width="170" height="100" rx="8" fill="#f8fafc" stroke="#bfdbfe" strokeWidth="1.5" />
+                                                <text x={SPINE_END_X + 10} y={SPINE_Y - 32} fill="#2563eb" fontSize="10" fontWeight="bold" fontFamily="sans-serif" className="pointer-events-none">MASALAH (EFFECT)</text>
+                                                {wrapText(data.problem, 20).slice(0,4).map((line, i) => <text key={i} x={SPINE_END_X + 10} y={SPINE_Y - 12 + i*16} fill="#0f172a" fontSize="12" fontWeight="700" fontFamily="sans-serif" className="pointer-events-none">{line}</text>)}
+                                            </g>
+                                        </svg>
                                     </div>
                                 </div>
-                            </div>
-                        </div>
-                    )}
 
-                    {/* TOOL 2: 5 WHYS */}
-                    {activeTab === '5whys' && (
-                        <div className="flex flex-col flex-1 bg-slate-50 overflow-y-auto animate-in fade-in duration-300 print-wrapper p-4 md:p-8" ref={whysRef}>
-                            <div className="max-w-4xl mx-auto w-full space-y-6">
-                                <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
-                                    <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2"><Layers className="w-6 h-6 text-blue-600" /> 5 Whys Analysis</h2>
-                                    <div className="mb-4">
-                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Problem Statement</label>
-                                        <textarea rows="2" value={fiveWhys.problem} onChange={(e) => setFiveWhys({...fiveWhys, problem: e.target.value})} className="w-full bg-red-50 border border-red-200 text-red-900 rounded-lg p-4 font-semibold text-lg outline-none focus:ring-2 focus:ring-red-500" placeholder="Tulis masalah yang terjadi..." />
-                                    </div>
-                                </div>
-                                <div className="space-y-4 pl-4 relative before:absolute before:inset-0 before:ml-[31px] before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-1 before:bg-gradient-to-b before:from-transparent before:via-slate-300 before:to-transparent">
-                                    {fiveWhys.whys.map((why, idx) => (
-                                        <div key={idx} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
-                                            <div className="flex items-center justify-center w-10 h-10 rounded-full border-4 border-white bg-blue-500 text-white font-bold shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10">{idx + 1}</div>
-                                            <div className="w-[calc(100%-4rem)] md:w-[calc(50%-3rem)] bg-white border border-slate-200 p-4 rounded-xl shadow-sm relative">
-                                                <div className="flex justify-between items-center mb-2"><h3 className="font-bold text-slate-700 text-sm">Why {idx + 1}?</h3><button onClick={() => removeWhy(idx)} className="text-slate-400 hover:text-red-500 no-print"><Trash2 className="w-4 h-4" /></button></div>
-                                                <textarea rows="2" value={why} onChange={(e) => updateWhy(idx, e.target.value)} className="w-full bg-transparent outline-none text-slate-600 resize-y" placeholder={`Alasan ke-${idx + 1}...`} />
+                                <div className="flex-1 w-full max-w-7xl mx-auto p-4 md:p-8 table-wrapper bg-slate-50 space-y-6">
+                                    {data.conclusion && (
+                                        <div className="bg-white border border-blue-200 rounded-xl p-5 shadow-sm flex items-start gap-4">
+                                            <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl shrink-0 mt-0.5"><FileText className="w-5 h-5" /></div>
+                                            <div className="flex-1">
+                                                <h3 className="text-xs font-bold text-blue-800 uppercase tracking-wider mb-1">Executive Conclusion (Sintesis RCA)</h3>
+                                                <textarea rows="2" value={data.conclusion} onChange={(e) => setData(prev => ({ ...prev, conclusion: e.target.value }))} className="w-full text-sm text-slate-700 bg-transparent outline-none resize-none font-medium leading-relaxed" />
                                             </div>
                                         </div>
-                                    ))}
-                                    <div className="relative flex justify-center z-10 no-print pt-4"><button onClick={addWhy} className="bg-white border border-slate-300 text-slate-600 hover:bg-slate-50 px-4 py-2 rounded-full font-medium shadow-sm flex items-center gap-2"><Plus className="w-4 h-4" /> Tambah Why</button></div>
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-6">
-                                    <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-6 shadow-sm">
-                                        <label className="text-xs font-bold text-emerald-700 uppercase tracking-wider mb-2 block flex items-center gap-2"><Check className="w-4 h-4" /> Root Cause</label>
-                                        <textarea rows="4" value={fiveWhys.rootCause} onChange={(e) => setFiveWhys({...fiveWhys, rootCause: e.target.value})} className="w-full bg-transparent text-emerald-900 font-medium outline-none resize-none" placeholder="Kesimpulan akar masalah..." />
-                                    </div>
-                                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-6 shadow-sm">
-                                        <label className="text-xs font-bold text-blue-700 uppercase tracking-wider mb-2 block flex items-center gap-2"><FileText className="w-4 h-4" /> Action Plan</label>
-                                        <textarea rows="4" value={fiveWhys.actionPlan} onChange={(e) => setFiveWhys({...fiveWhys, actionPlan: e.target.value})} className="w-full bg-transparent text-blue-900 font-medium outline-none resize-none" placeholder="Tindakan perbaikan..." />
+                                    )}
+                                    <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                                        <div className="px-6 py-4 border-b border-slate-200 flex flex-wrap gap-4 justify-between items-center bg-white">
+                                            <div>
+                                                <h2 className="text-lg font-bold text-[#005073] uppercase tracking-wide">Corrective Action Plan (CAPA)</h2>
+                                                <p className="text-xs text-slate-500">Daftar ini disinkronisasikan dua-arah dengan visualisasi di atas.</p>
+                                            </div>
+                                            <div className="flex items-center gap-2 no-print">
+                                                <button onClick={exportExcel} className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2 shadow-sm"><FileSpreadsheet className="w-4 h-4" /> Export Excel</button>
+                                                <button onClick={() => { if(data.categories.length > 0) handleAddCause(data.categories[0].id); }} className="bg-[#059669] hover:bg-[#047857] text-white px-4 py-2 rounded-lg text-sm font-medium transition"><Plus className="w-4 h-4 inline mr-1" /> Tambah Baris Manual</button>
+                                            </div>
+                                        </div>
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full text-sm text-left border-collapse">
+                                                <thead className="bg-[#005073] text-white">
+                                                    <tr>
+                                                        <th className="border-b border-slate-300 p-3 font-semibold w-40">Category</th>
+                                                        <th className="border-b border-slate-300 p-3 font-semibold w-64">Main Cause</th>
+                                                        <th className="border-b border-slate-300 p-3 font-semibold w-36">Validasi</th>
+                                                        <th className="border-b border-slate-300 p-3 font-semibold min-w-[280px]">Sub Cause</th>
+                                                        <th className="border-b border-slate-300 p-3 font-semibold min-w-[280px]">Corrective Action Plan</th>
+                                                        <th className="border-b border-slate-300 p-3 font-semibold w-24">PIC</th>
+                                                        <th className="border-b border-slate-300 p-3 font-semibold w-24">Due Date</th>
+                                                        <th className="border-b border-slate-300 p-3 font-semibold w-12 text-center no-print">Act</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-slate-200 bg-white">
+                                                    {data.categories.map((cat) => (
+                                                        cat.causes.map((cause, idx) => {
+                                                            const isHighlighted = highlightedCause === cause.id;
+                                                            return (
+                                                                <tr key={cause.id} onClick={() => setHighlightedCause(cause.id)} className={`transition-colors cursor-pointer ${isHighlighted ? 'bg-yellow-50/80 ring-1 ring-yellow-400 inset-0' : 'hover:bg-slate-50'}`}>
+                                                                    {idx === 0 && (
+                                                                        <td rowSpan={cat.causes.length} className="border-r border-slate-200 p-3 align-top bg-slate-50/50">
+                                                                            <input value={cat.name} onChange={(e) => { const val = e.target.value; setData(prev => ({ ...prev, categories: prev.categories.map(c => c.id === cat.id ? { ...c, name: val } : c) })); }} className="w-full bg-transparent font-bold text-slate-700 outline-none focus:border-b border-blue-500" />
+                                                                        </td>
+                                                                    )}
+                                                                    <td className="p-2 border-r border-slate-200 align-top"><textarea rows="3" value={cause.text} onChange={(e) => handleTableEdit(cat.id, cause.id, 'text', e.target.value)} className={`w-full bg-transparent outline-none resize-none p-1 font-medium ${isHighlighted ? 'text-yellow-900' : 'text-slate-800'}`} /></td>
+                                                                    <td className="p-2 border-r border-slate-200 align-top">
+                                                                        <select 
+                                                                            value={cause.validity || 'pending'} 
+                                                                            onChange={(e) => handleTableEdit(cat.id, cause.id, 'validity', e.target.value)} 
+                                                                            className={`w-full text-[11px] font-bold outline-none p-1.5 rounded border appearance-none cursor-pointer ${cause.validity === 'valid' ? 'bg-green-50 text-green-700 border-green-200' : cause.validity === 'invalid' ? 'bg-slate-100 text-slate-500 border-slate-200 line-through' : 'bg-white text-slate-600 border-slate-200'}`}
+                                                                        >
+                                                                            <option value="pending">- Belum Diuji -</option>
+                                                                            <option value="valid">✅ Valid</option>
+                                                                            <option value="invalid">❌ Tidak Valid</option>
+                                                                        </select>
+                                                                    </td>
+                                                                    <td className="p-2 border-r border-slate-200 align-top"><textarea rows="4" value={cause.subCause} onChange={(e) => handleTableEdit(cat.id, cause.id, 'subCause', e.target.value)} className="w-full bg-transparent outline-none p-1 text-slate-600 text-xs" /></td>
+                                                                    <td className="p-2 border-r border-slate-200 align-top"><textarea rows="4" value={cause.actionPlan} onChange={(e) => handleTableEdit(cat.id, cause.id, 'actionPlan', e.target.value)} className="w-full bg-transparent outline-none p-1 text-slate-700 text-xs" /></td>
+                                                                    <td className="p-2 border-r border-slate-200 align-top"><input type="text" value={cause.pic} onChange={(e) => handleTableEdit(cat.id, cause.id, 'pic', e.target.value)} className="w-full bg-transparent outline-none p-1 text-slate-600 text-xs" /></td>
+                                                                    <td className="p-2 border-r border-slate-200 align-top"><input type="date" value={cause.dueDate} onChange={(e) => handleTableEdit(cat.id, cause.id, 'dueDate', e.target.value)} className="w-full bg-transparent outline-none p-1 text-slate-600 text-xs" /></td>
+                                                                    <td className="p-2 text-center align-top no-print"><button onClick={(e) => handleDeleteCause(cat.id, idx, e)} className="text-red-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 transition"><Trash2 className="w-4 h-4 mx-auto" /></button></td>
+                                                                </tr>
+                                                            );
+                                                        })
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    )}
+                        )}
 
-                    {/* TOOL 3: FTA */}
-                    {activeTab === 'fta' && (
-                        <div className="flex flex-col flex-1 bg-slate-50 overflow-auto animate-in fade-in duration-300 p-8 print-wrapper" ref={ftaRef}>
-                            <div className="w-full min-w-max mx-auto bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
-                                <div className="mb-10 text-center">
-                                    <h2 className="text-2xl font-bold text-slate-800 flex items-center justify-center gap-2"><Network className="w-6 h-6 text-blue-600" /> Fault Tree Analysis</h2>
-                                </div>
-                                <div className="fta-tree flex justify-center w-full">
-                                    <ul>{renderFTANode(ftaData, true)}</ul>
+                        {/* TOOL 2: 5 WHYS */}
+                        {activeTab === '5whys' && (
+                            <div className="flex flex-col flex-1 bg-slate-50 overflow-y-auto animate-in fade-in duration-300 print-wrapper p-4 md:p-8" ref={whysRef}>
+                                <div className="max-w-4xl mx-auto w-full space-y-6">
+                                    <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+                                        <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2"><Layers className="w-6 h-6 text-blue-600" /> 5 Whys Analysis</h2>
+                                        <div className="mb-4">
+                                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Problem Statement</label>
+                                            <textarea rows="2" value={fiveWhys.problem} onChange={(e) => setFiveWhys({...fiveWhys, problem: e.target.value})} className="w-full bg-red-50 border border-red-200 text-red-900 rounded-lg p-4 font-semibold text-lg outline-none focus:ring-2 focus:ring-red-500" placeholder="Tulis masalah yang terjadi..." />
+                                        </div>
+                                    </div>
+                                    <div className="space-y-4 pl-4 relative before:absolute before:inset-0 before:ml-[31px] before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-1 before:bg-gradient-to-b before:from-transparent before:via-slate-300 before:to-transparent">
+                                        {fiveWhys.whys.map((why, idx) => (
+                                            <div key={idx} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+                                                <div className="flex items-center justify-center w-10 h-10 rounded-full border-4 border-white bg-blue-500 text-white font-bold shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10">{idx + 1}</div>
+                                                <div className="w-[calc(100%-4rem)] md:w-[calc(50%-3rem)] bg-white border border-slate-200 p-4 rounded-xl shadow-sm relative">
+                                                    <div className="flex justify-between items-center mb-2"><h3 className="font-bold text-slate-700 text-sm">Why {idx + 1}?</h3><button onClick={() => removeWhy(idx)} className="text-slate-400 hover:text-red-500 no-print"><Trash2 className="w-4 h-4" /></button></div>
+                                                    <textarea rows="2" value={why} onChange={(e) => updateWhy(idx, e.target.value)} className="w-full bg-transparent outline-none text-slate-600 resize-y" placeholder={`Alasan ke-${idx + 1}...`} />
+                                                </div>
+                                            </div>
+                                        ))}
+                                        <div className="relative flex justify-center z-10 no-print pt-4"><button onClick={addWhy} className="bg-white border border-slate-300 text-slate-600 hover:bg-slate-50 px-4 py-2 rounded-full font-medium shadow-sm flex items-center gap-2"><Plus className="w-4 h-4" /> Tambah Why</button></div>
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-6">
+                                        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-6 shadow-sm">
+                                            <label className="text-xs font-bold text-emerald-700 uppercase tracking-wider mb-2 block flex items-center gap-2"><Check className="w-4 h-4" /> Root Cause</label>
+                                            <textarea rows="4" value={fiveWhys.rootCause} onChange={(e) => setFiveWhys({...fiveWhys, rootCause: e.target.value})} className="w-full bg-transparent text-emerald-900 font-medium outline-none resize-none" placeholder="Kesimpulan akar masalah..." />
+                                        </div>
+                                        <div className="bg-blue-50 border border-blue-200 rounded-xl p-6 shadow-sm">
+                                            <label className="text-xs font-bold text-blue-700 uppercase tracking-wider mb-2 block flex items-center gap-2"><FileText className="w-4 h-4" /> Action Plan</label>
+                                            <textarea rows="4" value={fiveWhys.actionPlan} onChange={(e) => setFiveWhys({...fiveWhys, actionPlan: e.target.value})} className="w-full bg-transparent text-blue-900 font-medium outline-none resize-none" placeholder="Tindakan perbaikan..." />
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    )}
+                        )}
+
+                        {/* TOOL 3: FTA */}
+                        {activeTab === 'fta' && (
+                            <div className="flex flex-col flex-1 bg-slate-50 overflow-auto animate-in fade-in duration-300 p-8 print-wrapper" ref={ftaRef}>
+                                <div className="w-full min-w-max mx-auto bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
+                                    <div className="mb-10 text-center">
+                                        <h2 className="text-2xl font-bold text-slate-800 flex items-center justify-center gap-2"><Network className="w-6 h-6 text-blue-600" /> Fault Tree Analysis</h2>
+                                        <p className="text-sm text-slate-500 mt-2">Sorot (hover) kotak event untuk mengatur Validasi atau menambahkan percabangan.</p>
+                                    </div>
+                                    <div className="fta-tree flex justify-center w-full">
+                                        <ul>{renderFTANode(ftaData, true)}</ul>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
 
                     {/* MODAL EDIT CEPAT DARI DIAGRAM */}
                     {editingItem && (
