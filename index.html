@@ -3,13 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fishbone Studio - 6M Independent Draggable Bones</title>
+    <title>Fishbone Studio - Complete RCA Suite</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
     <!-- Babel for in-browser JSX transpilation -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- HTML2Canvas untuk Export PNG Alat Non-SVG (5Whys & FTA) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
     <!-- Import Map for React and Lucide Icons -->
     <script type="importmap">
@@ -31,117 +34,58 @@
         import {
             ZoomIn, ZoomOut, RotateCcw, Plus, Download, Printer,
             Sparkles, Info, Layers, ChevronDown, Edit2, Check, X,
-            HelpCircle, Eye, EyeOff, Bot, Wand2, Loader2, Trash2, FileText, Move
+            HelpCircle, Eye, EyeOff, Bot, Wand2, Loader2, Trash2, FileText, Move,
+            Network, ListEnd, AlignEndHorizontal
         } from 'lucide-react';
 
-        // PRESET LENGKAP 6M (3 ATAS, 3 BAWAH)
         const PRESETS = {
             '6M': {
                 name: '6M (Manufaktur & Rekayasa)',
                 problem: 'Tingkat Cacat Produk Meningkat 15%',
-                conclusion: 'Kegagalan disebabkan oleh keausan mekanis puncher dan variasi ketebalan material yang tidak terdeteksi akibat sensor in-line telat dikalibrasi.',
+                conclusion: 'Kegagalan disebabkan oleh keausan mekanis puncher dan variasi material.',
                 categories: [
                     { 
                         id: 'cat-1', name: 'Man (Tenaga Kerja)', color: '#2563EB', 
                         causes: [
-                            { 
-                                text: 'Kurang pelatihan berkala', 
-                                subCause: 'Operator shift malam belum lulus sertifikasi mesin presisi', 
-                                actionPlan: 'Wajibkan sertifikasi ulang per kuartal dan buat matriks keahlian operator.' 
-                            },
-                            { 
-                                text: 'Kelelahan operator shift 3', 
-                                subCause: 'Lembur berturut-turut melebihi batas 14 jam per minggu', 
-                                actionPlan: 'Batasi lembur maksimal 2 hari berturut-turut.' 
-                            }
+                            { text: 'Kurang pelatihan berkala', subCause: 'Operator shift malam belum lulus sertifikasi mesin presisi', actionPlan: 'Wajibkan sertifikasi ulang per kuartal dan buat matriks keahlian operator.' },
+                            { text: 'Kelelahan operator shift 3', subCause: 'Lembur berturut-turut melebihi batas 14 jam per minggu', actionPlan: 'Batasi lembur maksimal 2 hari berturut-turut.' }
                         ] 
                     },
                     { 
                         id: 'cat-2', name: 'Machine (Mesin)', color: '#059669', 
                         causes: [
-                            { 
-                                text: 'Presisi hidrolik puncher turun', 
-                                subCause: 'Seal silinder hidrolik aus akibat suhu oli melebihi 65°C', 
-                                actionPlan: 'Ganti seal tahan panas dan pasang modul chiller pendingin.' 
-                            },
-                            { 
-                                text: 'Keausan guide pin die block', 
-                                subCause: 'Clearance guide pin melebihi batas toleransi 0.08 mm', 
-                                actionPlan: 'Ganti guide pin baru dan lakukan flushing lubrikasi.' 
-                            }
+                            { text: 'Presisi hidrolik puncher turun', subCause: 'Seal silinder hidrolik aus akibat suhu oli melebihi 65°C', actionPlan: 'Ganti seal tahan panas dan pasang modul chiller pendingin.' },
+                            { text: 'Keausan guide pin die block', subCause: 'Clearance guide pin melebihi batas toleransi 0.08 mm', actionPlan: 'Ganti guide pin baru dan lakukan flushing lubrikasi.' }
                         ] 
                     },
                     { 
                         id: 'cat-3', name: 'Method (Metode)', color: '#D97706', 
                         causes: [
-                            { 
-                                text: 'SOP pemeliharaan usang', 
-                                subCause: 'Parameter inspeksi cetakan masih mengacu pada mesin tipe lama', 
-                                actionPlan: 'Revisi Work Instruction dan buat checklist digital.' 
-                            },
-                            { 
-                                text: 'Prosedur setup tidak standar', 
-                                subCause: 'Teknisi mengencangkan clamping tanpa kunci torsi', 
-                                actionPlan: 'Wajibkan kunci torsi terkalibrasi dan pasang visual board.' 
-                            }
+                            { text: 'SOP pemeliharaan usang', subCause: 'Parameter inspeksi cetakan masih mengacu pada mesin tipe lama', actionPlan: 'Revisi Work Instruction dan buat checklist digital.' },
+                            { text: 'Prosedur setup tidak standar', subCause: 'Teknisi mengencangkan clamping tanpa kunci torsi', actionPlan: 'Wajibkan kunci torsi terkalibrasi dan pasang visual board.' }
                         ] 
                     },
                     { 
                         id: 'cat-4', name: 'Material (Bahan Baku)', color: '#DB2777', 
                         causes: [
-                            { 
-                                text: 'Ketebalan pelat lewat toleransi', 
-                                subCause: 'Deviasi bahan supplier ±0.15 mm dari ambang 0.05 mm', 
-                                actionPlan: 'Perketat kriteria penerimaan material dan terbitkan CAR.' 
-                            },
-                            { 
-                                text: 'Residu anti-karat berlebih', 
-                                subCause: 'Oli pelindung terlalu kental menjebak gram sisa potong', 
-                                actionPlan: 'Standarkan viskositas oli dan pasang air blow cleaner.' 
-                            }
+                            { text: 'Ketebalan pelat lewat toleransi', subCause: 'Deviasi bahan supplier ±0.15 mm dari ambang 0.05 mm', actionPlan: 'Perketat kriteria penerimaan material dan terbitkan CAR.' },
+                            { text: 'Residu anti-karat berlebih', subCause: 'Oli pelindung terlalu kental menjebak gram sisa potong', actionPlan: 'Standarkan viskositas oli dan pasang air blow cleaner.' }
                         ] 
                     },
                     { 
                         id: 'cat-5', name: 'Measurement (Pengukuran)', color: '#7C3AED', 
                         causes: [
-                            { 
-                                text: 'Sensor tidak terkalibrasi', 
-                                subCause: 'Sensor ultrasonik telat kalibrasi 45 hari dan tertutup kabut oli', 
-                                actionPlan: 'Kalibrasi ulang sensor dan bersihkan lensa optik harian.' 
-                            },
-                            { 
-                                text: 'Metode sampling QC minim', 
-                                subCause: 'Pemeriksaan hanya pada 5 part awal setiap pergantian coil', 
-                                actionPlan: 'Terapkan SPC sampling berkala per 500 stroke.' 
-                            }
+                            { text: 'Sensor tidak terkalibrasi', subCause: 'Sensor ultrasonik telat kalibrasi 45 hari dan tertutup kabut oli', actionPlan: 'Kalibrasi ulang sensor dan bersihkan lensa optik harian.' },
+                            { text: 'Metode sampling QC minim', subCause: 'Pemeriksaan hanya pada 5 part awal setiap pergantian coil', actionPlan: 'Terapkan SPC sampling berkala per 500 stroke.' }
                         ] 
                     },
                     { 
                         id: 'cat-6', name: 'Milieu / Environment (Lingkungan)', color: '#0891B2', 
                         causes: [
-                            { 
-                                text: 'Kelembapan ruang produksi tinggi', 
-                                subCause: 'Kelembapan 85% memicu bintik karat mikro pada cetakan cadangan', 
-                                actionPlan: 'Pasang dehumidifier dan perbaiki ventilasi aktif.' 
-                            },
-                            { 
-                                text: 'Akumulasi debu abrasif', 
-                                subCause: 'Partisi area gerinda dan stamping presisi hanya tirai plastik', 
-                                actionPlan: 'Bangun partisi panel sandwich kedap debu.' 
-                            }
+                            { text: 'Kelembapan ruang produksi tinggi', subCause: 'Kelembapan 85% memicu bintik karat mikro pada cetakan cadangan', actionPlan: 'Pasang dehumidifier dan perbaiki ventilasi aktif.' },
+                            { text: 'Akumulasi debu abrasif', subCause: 'Partisi area gerinda dan stamping presisi hanya tirai plastik', actionPlan: 'Bangun partisi panel sandwich kedap debu.' }
                         ] 
                     }
-                ]
-            },
-            '4P': {
-                name: '4P (Pemasaran & Layanan)',
-                problem: 'Konversi Penjualan Kuartal Ini Menurun',
-                conclusion: 'Penurunan konversi disebabkan oleh kendala performa teknis di checkout mobile serta struktur harga yang kalah kompetitif.',
-                categories: [
-                    { id: 'cat-1', name: 'Product (Produk)', color: '#2563EB', causes: [{ text: 'Fitur baru membingungkan', subCause: 'Navigasi diubah tanpa tutorial onboarding bertahap', actionPlan: 'Rilis interactive product tour 3 langkah.' }] },
-                    { id: 'cat-2', name: 'Price (Harga)', color: '#059669', causes: [{ text: 'Struktur harga kurang kompetitif', subCause: 'Kompetitor meluncurkan diskon 40% skema tahunan', actionPlan: 'Luncurkan paket bundling tahunan fleksibel.' }] },
-                    { id: 'cat-3', name: 'Place (Saluran)', color: '#D97706', causes: [{ text: 'Latency tinggi checkout mobile', subCause: 'Payment gateway sering timeout > 8 detik di jam sibuk', actionPlan: 'Gunakan multi-gateway auto-routing.' }] },
-                    { id: 'cat-4', name: 'Promotion (Promosi)', color: '#DB2777', causes: [{ text: 'Targeting iklan meleset', subCause: 'Data demografi audiens belum diperbarui pasca update OS', actionPlan: 'Gunakan Conversion API sisi server.' }] }
                 ]
             }
         };
@@ -197,10 +141,13 @@
         const SPINE_END_X = 1320;
 
         function App() {
-            // Anti-cache: v13_isolated_drag memastikan 6M selalu termuat secara default
+            // --- TABS STATE ---
+            const [activeTab, setActiveTab] = useState('fishbone'); // 'fishbone', '5whys', 'fta'
+
+            // --- FISHBONE STATE ---
             const [data, setData] = useState(() => {
                 try {
-                    const saved = localStorage.getItem('fishbone_diagram_data_v13_isolated_drag');
+                    const saved = localStorage.getItem('rca_fishbone_data');
                     if (saved) {
                         const parsed = JSON.parse(saved);
                         if (parsed.categories && parsed.categories.length >= 6) return parsed;
@@ -209,18 +156,56 @@
                 return formatPresetData(PRESETS['6M']);
             });
 
-            const [activePreset, setActivePreset] = useState('6M');
+            // --- 5 WHYS STATE ---
+            const [fiveWhys, setFiveWhys] = useState(() => {
+                try {
+                    const saved = localStorage.getItem('rca_5whys_data');
+                    if (saved) return JSON.parse(saved);
+                } catch (e) {}
+                return {
+                    problem: "Mesin Pompa Sentrifugal Berhenti Beroperasi Tiba-tiba",
+                    whys: [
+                        "Why 1: Motor pompa mengalami overload dan relay trip.",
+                        "Why 2: Arus listrik ke motor melebihi batas karena putaran poros tersendat.",
+                        "Why 3: Bearing pada poros utama pompa macet/rusak.",
+                        "Why 4: Tidak ada pelumasan yang cukup pada bearing tersebut.",
+                        "Why 5: Jadwal pelumasan preventif bulanan terlewat."
+                    ],
+                    rootCause: "Sistem penjadwalan maintenance masih manual sehingga rawan terlewat oleh teknisi.",
+                    actionPlan: "Implementasikan Computerized Maintenance Management System (CMMS) dengan notifikasi alarm otomatis ke smartphone teknisi."
+                };
+            });
+
+            // --- FAULT TREE (FTA) STATE ---
+            const [ftaData, setFtaData] = useState(() => {
+                try {
+                    const saved = localStorage.getItem('rca_fta_data');
+                    if (saved) return JSON.parse(saved);
+                } catch (e) {}
+                return {
+                    id: 'root', type: 'top', text: 'Sistem Pompa Air Padam', gate: 'OR',
+                    children: [
+                        { id: 'c1', type: 'basic', text: 'Suplai Listrik PLN Mati' },
+                        { 
+                            id: 'c2', type: 'intermediate', text: 'Genset Gagal Backup', gate: 'AND',
+                            children: [
+                                { id: 'c2a', type: 'basic', text: 'Aki Genset Soak' },
+                                { id: 'c2b', type: 'basic', text: 'BBM Genset Habis' }
+                            ]
+                        }
+                    ]
+                };
+            });
+
             const [zoom, setZoom] = useState(1);
             const [pan, setPan] = useState({ x: 0, y: 0 });
             const [isPanning, setIsPanning] = useState(false);
             const [startPan, setStartPan] = useState({ x: 0, y: 0 });
             
-            // Drag and Drop States
-            const [dragItem, setDragItem] = useState(null); // { type, id, catId, causeId, startX, startY, startWidth }
+            const [dragItem, setDragItem] = useState(null);
             const [tempOffsets, setTempOffsets] = useState({});
             const [highlightedCause, setHighlightedCause] = useState(null);
 
-            const [showPresetsMenu, setShowPresetsMenu] = useState(false);
             const [isExporting, setIsExporting] = useState(false);
             const [editingItem, setEditingItem] = useState(null);
 
@@ -233,12 +218,15 @@
 
             const containerRef = useRef(null);
             const svgRef = useRef(null);
+            const whysRef = useRef(null);
+            const ftaRef = useRef(null);
 
-            useEffect(() => {
-                try { localStorage.setItem('fishbone_diagram_data_v13_isolated_drag', JSON.stringify(data)); } catch (e) {}
-            }, [data]);
+            // Auto Save
+            useEffect(() => { localStorage.setItem('rca_fishbone_data', JSON.stringify(data)); }, [data]);
+            useEffect(() => { localStorage.setItem('rca_5whys_data', JSON.stringify(fiveWhys)); }, [fiveWhys]);
+            useEffect(() => { localStorage.setItem('rca_fta_data', JSON.stringify(ftaData)); }, [ftaData]);
 
-            // SISTEM POINTER UNTUK MENGGESER TULANG SECARA INDEPENDEN
+            // INTERAKSI POINTER UNTUK FISHBONE
             const handlePointerDown = (e) => {
                 if (e.target.closest('button') || e.target.closest('.no-pan') || e.target.closest('input') || e.target.closest('textarea') || e.target.closest('td') || editingItem) return;
                 setIsPanning(true);
@@ -275,20 +263,14 @@
                             next.categories = next.categories.map((c) => {
                                 if (c.id === dragItem.catId || c.id === dragItem.id) {
                                     const nextCat = { ...c };
-                                    
-                                    // 1. Geser ujung tulang kategori
                                     if (dragItem.type === 'cat' && dragItem.id === c.id) {
                                         nextCat.offsetX = (nextCat.offsetX || 0) + (offsets.dx || 0);
                                         nextCat.offsetY = (nextCat.offsetY || 0) + (offsets.dy || 0);
                                     }
-                                    
-                                    // 2. Geser pangkal tulang kategori di spine
                                     if (dragItem.type === 'cat_bone' && dragItem.catId === c.id) {
                                         nextCat.boneOffsetX = (nextCat.boneOffsetX || 0) + (offsets.dx || 0);
                                         nextCat.boneOffsetY = (nextCat.boneOffsetY || 0) + (offsets.dy || 0);
                                     }
-                                    
-                                    // 3. Geser Cause atau Sub-cause SECARA TERISOLASI
                                     if (dragItem.catId === c.id) {
                                         nextCat.causes = nextCat.causes.map(cause => {
                                             const isMatchingCause =
@@ -299,29 +281,20 @@
 
                                             if (isMatchingCause) {
                                                 const updatedCause = { ...cause };
-                                                
-                                                // Hanya Cause yang berpindah (Sub-cause tetap di tempatnya)
                                                 if (dragItem.type === 'cause') {
                                                     updatedCause.offsetX = (cause.offsetX || 0) + (offsets.dx || 0);
                                                     updatedCause.offsetY = (cause.offsetY || 0) + (offsets.dy || 0);
                                                 }
-                                                
-                                                // Hanya Persendian yang bergeser di tulang
                                                 else if (dragItem.type === 'cause_joint') {
                                                     updatedCause.jointOffsetRatio = (cause.jointOffsetRatio || 0) + (offsets.dy || 0) / 180;
                                                 }
-                                                
-                                                // Hanya Sub-cause yang berpindah (Cause tetap diam di tempat)
                                                 else if (dragItem.type === 'subcause') {
                                                     updatedCause.subOffsetX = (cause.subOffsetX || 0) + (offsets.dx || 0);
                                                     updatedCause.subOffsetY = (cause.subOffsetY || 0) + (offsets.dy || 0);
                                                 }
-                                                
-                                                // Resize
                                                 else if (dragItem.type === 'resize') {
                                                     updatedCause.customWidth = Math.max(100, (cause.customWidth || dragItem.startWidth) + (offsets.dw || 0));
                                                 }
-                                                
                                                 return updatedCause;
                                             }
                                             return cause;
@@ -342,9 +315,7 @@
             const startDrag = (e, type, id, catId = null, causeId = null) => {
                 e.stopPropagation();
                 setDragItem({ type, id, catId, causeId, startX: e.clientX, startY: e.clientY });
-                if (type === 'cause' || type === 'subcause') {
-                    setHighlightedCause(causeId || id);
-                }
+                if (type === 'cause' || type === 'subcause') setHighlightedCause(causeId || id);
             };
 
             const startResize = (e, id, catId, currentWidth) => {
@@ -360,22 +331,7 @@
                 }
             };
 
-            // CRUD OPERATIONS
-            const handleAddCategory = () => {
-                const newId = `cat-${Date.now()}`;
-                const nextColor = COLOR_PALETTE[data.categories.length % COLOR_PALETTE.length];
-                setData((prev) => ({
-                    ...prev,
-                    categories: [...prev.categories, { id: newId, name: `Kategori Baru ${data.categories.length + 1}`, color: nextColor, offsetX: 0, offsetY: 0, causes: [{ id: `cause-${Date.now()}`, text: 'Penyebab Baru', subCause: 'Rincian sub-cause baru', actionPlan: '', pic: '', dueDate: '', offsetX: 0, offsetY: 0, subOffsetX: 0, subOffsetY: 0, jointOffsetRatio: 0, customWidth: null }] }]
-                }));
-            };
-
-            const handleDeleteCategory = (catId, e) => {
-                if (e) e.stopPropagation();
-                if (data.categories.length <= 1) return;
-                setData((prev) => ({ ...prev, categories: prev.categories.filter((c) => c.id !== catId) }));
-            };
-
+            // CRUD OPERATIONS FISHBONE
             const handleAddCause = (catId, e) => {
                 if (e) e.stopPropagation();
                 setData((prev) => ({
@@ -442,17 +398,100 @@
                 setEditingItem(null);
             };
 
-            // AI GENERATE PERMANEN 6 KATEGORI (6M)
+            // CRUD OPERATIONS 5 WHYS
+            const updateWhy = (idx, value) => {
+                const newWhys = [...fiveWhys.whys]; newWhys[idx] = value;
+                setFiveWhys({...fiveWhys, whys: newWhys});
+            };
+            const addWhy = () => setFiveWhys({...fiveWhys, whys: [...fiveWhys.whys, ""]});
+            const removeWhy = (idx) => {
+                const newWhys = [...fiveWhys.whys]; newWhys.splice(idx, 1);
+                setFiveWhys({...fiveWhys, whys: newWhys});
+            };
+
+            // CRUD OPERATIONS FTA
+            const updateFTANode = (node, id, field, value) => {
+                if (node.id === id) { return { ...node, [field]: value }; }
+                if (node.children) { return { ...node, children: node.children.map(c => updateFTANode(c, id, field, value)) }; }
+                return node;
+            };
+            const addChildFTANode = (node, id, type) => {
+                if (node.id === id) {
+                    const newChild = { id: `n-${Date.now()}`, type, text: type === 'basic' ? 'Basic Event' : 'Intermediate Event', gate: type === 'intermediate' ? 'OR' : undefined, children: type === 'intermediate' ? [] : undefined };
+                    return { ...node, children: [...(node.children || []), newChild] };
+                }
+                if (node.children) { return { ...node, children: node.children.map(c => addChildFTANode(c, id, type)) }; }
+                return node;
+            };
+            const removeFTANode = (node, id) => {
+                if (node.children) {
+                    const filtered = node.children.filter(c => c.id !== id);
+                    return { ...node, children: filtered.map(c => removeFTANode(c, id)) };
+                }
+                return node;
+            };
+            
+            const handleFTAUpdate = (id, field, value) => setFtaData(updateFTANode(ftaData, id, field, value));
+            const handleFTAAddChild = (id, type) => setFtaData(addChildFTANode(ftaData, id, type));
+            const handleFTARemove = (id) => setFtaData(removeFTANode(ftaData, id));
+
+            const renderFTANode = (node, isRoot = false) => (
+                <li key={node.id}>
+                    <div className="flex flex-col items-center">
+                        <div className="relative group">
+                            <div className={`text-center p-3 border-2 shadow-sm relative z-10 transition-colors flex flex-col justify-center items-center ${node.type === 'basic' ? 'w-36 h-36 rounded-full border-red-500 bg-red-50' : 'w-40 md:w-48 rounded-lg border-blue-600 bg-white'}`}>
+                                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{node.type}</div>
+                                <textarea value={node.text} onChange={(e) => handleFTAUpdate(node.id, 'text', e.target.value)} rows="2" className="w-full bg-transparent text-sm font-semibold text-center outline-none resize-none" placeholder="Tulis event..." />
+                                
+                                <div className="absolute top-0 right-0 translate-x-full opacity-0 group-hover:opacity-100 transition-opacity bg-white border border-slate-200 shadow-xl rounded-lg p-1.5 ml-2 flex flex-col gap-1 z-50 w-32 no-print">
+                                    {node.type !== 'basic' && (
+                                        <>
+                                            <button onClick={() => handleFTAAddChild(node.id, 'intermediate')} className="text-[10px] text-left font-semibold text-blue-700 hover:bg-blue-50 px-2 py-1.5 rounded transition">+ Intermediate</button>
+                                            <button onClick={() => handleFTAAddChild(node.id, 'basic')} className="text-[10px] text-left font-semibold text-red-700 hover:bg-red-50 px-2 py-1.5 rounded transition">+ Basic Event</button>
+                                        </>
+                                    )}
+                                    {!isRoot && <button onClick={() => handleFTARemove(node.id)} className="text-[10px] text-left font-semibold text-slate-600 hover:bg-slate-100 px-2 py-1.5 rounded transition mt-1 border-t border-slate-100 pt-1.5">Hapus Event</button>}
+                                </div>
+                            </div>
+                        </div>
+
+                        {node.type !== 'basic' && node.children && node.children.length > 0 && (
+                            <div className="flex flex-col items-center">
+                                <div className="w-[2px] h-5 bg-slate-400"></div>
+                                <div className="relative z-10 cursor-pointer group/gate hover:scale-110 transition-transform no-print" onClick={() => handleFTAUpdate(node.id, 'gate', node.gate === 'AND' ? 'OR' : 'AND')} title="Klik untuk menukar jenis gerbang (AND / OR)">
+                                    {node.gate === 'AND' ? (
+                                        <svg width="44" height="34" viewBox="0 0 44 34">
+                                           <path d="M 4 32 L 4 16 A 18 14 0 0 1 40 16 L 40 32 Z" fill="#1e293b" stroke="#1e293b" strokeWidth="2"/>
+                                           <text x="22" y="24" textAnchor="middle" fontSize="10" fontWeight="bold" fill="#ffffff">AND</text>
+                                        </svg>
+                                    ) : (
+                                        <svg width="44" height="34" viewBox="0 0 44 34">
+                                           <path d="M 4 32 Q 22 22 40 32 Q 40 10 22 4 Q 4 10 4 32 Z" fill="#ffffff" stroke="#1e293b" strokeWidth="2"/>
+                                           <text x="22" y="24" textAnchor="middle" fontSize="10" fontWeight="bold" fill="#1e293b">OR</text>
+                                        </svg>
+                                    )}
+                                    <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 opacity-0 group-hover/gate:opacity-100 bg-black text-white text-[10px] px-2 py-1 rounded whitespace-nowrap">Tukar Gate</div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                    
+                    {node.type !== 'basic' && node.children && node.children.length > 0 && (
+                        <ul>
+                            {node.children.map(child => renderFTANode(child))}
+                        </ul>
+                    )}
+                </li>
+            );
+
+            // MULTI-TOOL AI GENERATE
             const handleAIGenerate = async () => {
                 if (!aiPrompt.trim()) return setAiError("Deskripsi masalah wajib diisi.");
                 setIsGenerating(true);
                 setAiError('');
                 localStorage.setItem('gemini_model', aiModel);
 
-                // Selalu kunci 6 kategori jika template 6M aktif
-                const expectedCategories = activePreset === '4P'
-                    ? PRESETS['4P'].categories.map(c => c.name)
-                    : PRESETS['6M'].categories.map(c => c.name);
+                const expectedCategories = PRESETS['6M'].categories.map(c => c.name);
 
                 try {
                     const response = await fetch('/api/generate', {
@@ -461,7 +500,8 @@
                         body: JSON.stringify({
                             prompt: aiPrompt,
                             model: aiModel,
-                            expectedCategories: expectedCategories
+                            tool: activeTab,
+                            expectedCategories
                         })
                     });
 
@@ -469,44 +509,43 @@
                     if (!response.ok) throw new Error(resJson.error || 'Gagal memproses data melalui server.');
 
                     let parsedData;
-                    try {
-                        parsedData = JSON.parse(resJson.result);
-                    } catch (e) {
-                        parsedData = JSON.parse(resJson.result.replace(/```json/gi, '').replace(/```/gi, '').trim());
+                    try { parsedData = JSON.parse(resJson.result); } 
+                    catch (e) { parsedData = JSON.parse(resJson.result.replace(/```json/gi, '').replace(/```/gi, '').trim()); }
+
+                    if (activeTab === 'fishbone') {
+                        const mappedCategories = (parsedData.categories || []).map((cat, i) => {
+                            const existingColor = PRESETS['6M'].categories[i]?.color || COLOR_PALETTE[i % COLOR_PALETTE.length];
+                            return {
+                                id: `cat-ai-${Date.now()}-${i}`,
+                                name: cat.name || `Kategori ${i + 1}`,
+                                color: existingColor,
+                                causes: (cat.causes || []).map((item, j) => {
+                                    const isObj = typeof item === 'object' && item !== null;
+                                    return {
+                                        id: `c-${Date.now()}-${i}-${j}`,
+                                        text: isObj ? (item.text || 'Penyebab') : item, subCause: isObj ? (item.subCause || '') : '',
+                                        actionPlan: isObj ? (item.actionPlan || '') : '', pic: '', dueDate: '',
+                                        offsetX: 0, offsetY: 0, subOffsetX: 0, subOffsetY: 0, jointOffsetRatio: 0
+                                    };
+                                })
+                            };
+                        });
+                        setData(formatPresetData({
+                            name: 'Hasil Analisis AI 6M', problem: parsedData.problem || aiPrompt, conclusion: parsedData.conclusion || 'Analisis telah disusun komprehensif.', categories: mappedCategories
+                        }));
+                    } else if (activeTab === '5whys') {
+                        setFiveWhys({
+                            problem: parsedData.problem || aiPrompt,
+                            whys: parsedData.whys || [],
+                            rootCause: parsedData.rootCause || '', actionPlan: parsedData.actionPlan || ''
+                        });
+                    } else if (activeTab === 'fta') {
+                        setFtaData(parsedData);
                     }
-
-                    const mappedCategories = (parsedData.categories || []).map((cat, i) => {
-                        const existingColor = PRESETS['6M'].categories[i]?.color || COLOR_PALETTE[i % COLOR_PALETTE.length];
-                        return {
-                            id: `cat-ai-${Date.now()}-${i}`,
-                            name: cat.name || PRESETS['6M'].categories[i]?.name || `Kategori ${i + 1}`,
-                            color: existingColor,
-                            causes: (cat.causes || []).map((item, j) => {
-                                const isObj = typeof item === 'object' && item !== null;
-                                return {
-                                    id: `c-${Date.now()}-${i}-${j}`,
-                                    text: isObj ? (item.text || 'Penyebab') : item,
-                                    subCause: isObj ? (item.subCause || '') : '',
-                                    actionPlan: isObj ? (item.actionPlan || '') : '',
-                                    pic: '',
-                                    dueDate: '',
-                                    offsetX: 0, offsetY: 0, subOffsetX: 0, subOffsetY: 0, jointOffsetRatio: 0
-                                };
-                            })
-                        };
-                    });
-
-                    setData(formatPresetData({
-                        name: 'Hasil Analisis 6M Lengkap',
-                        problem: parsedData.problem || aiPrompt,
-                        conclusion: parsedData.conclusion || 'Analisis 6M telah disusun secara komprehensif.',
-                        categories: mappedCategories
-                    }));
 
                     setShowAIModal(false);
                     setAiPrompt('');
-                    setZoom(1);
-                    setPan({ x: 0, y: 0 });
+                    setZoom(1); setPan({ x: 0, y: 0 });
                 } catch (err) {
                     setAiError(err.message);
                 } finally {
@@ -515,39 +554,38 @@
             };
 
             const exportPNG = () => {
-                if (!svgRef.current) return;
                 setIsExporting(true);
-                try {
-                    const svgElement = svgRef.current.cloneNode(true);
-                    svgElement.querySelectorAll('.no-print').forEach(el => el.remove());
-                    svgElement.querySelectorAll('.canvas-outer-bg').forEach(el => { 
-                        el.setAttribute('fill', '#ffffff'); 
-                        el.setAttribute('stroke', '#e2e8f0'); 
-                    });
-                    
-                    const svgBlob = new Blob([new XMLSerializer().serializeToString(svgElement)], { type: 'image/svg+xml;charset=utf-8' });
-                    const blobURL = URL.createObjectURL(svgBlob);
-                    const img = new Image();
-                    img.onload = () => {
-                        const canvas = document.createElement('canvas');
-                        canvas.width = SVG_WIDTH * 2; canvas.height = SVG_HEIGHT * 2;
-                        const ctx = canvas.getContext('2d'); ctx.scale(2, 2);
-                        ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, SVG_WIDTH, SVG_HEIGHT);
-                        ctx.drawImage(img, 0, 0, SVG_WIDTH, SVG_HEIGHT);
-                        const link = document.createElement('a'); 
-                        link.download = `Fishbone-6M-Bones-${Date.now()}.png`;
-                        link.href = canvas.toDataURL('image/png'); 
-                        link.click();
-                        URL.revokeObjectURL(blobURL); 
-                        setIsExporting(false);
-                    };
-                    img.src = blobURL;
-                } catch(e) { 
-                    setIsExporting(false); 
+                if (activeTab === 'fishbone' && svgRef.current) {
+                    try {
+                        const svgElement = svgRef.current.cloneNode(true);
+                        svgElement.querySelectorAll('.no-print').forEach(el => el.remove());
+                        svgElement.querySelectorAll('.canvas-outer-bg').forEach(el => { el.setAttribute('fill', '#ffffff'); el.setAttribute('stroke', '#e2e8f0'); });
+                        
+                        const svgBlob = new Blob([new XMLSerializer().serializeToString(svgElement)], { type: 'image/svg+xml;charset=utf-8' });
+                        const blobURL = URL.createObjectURL(svgBlob);
+                        const img = new Image();
+                        img.onload = () => {
+                            const canvas = document.createElement('canvas');
+                            canvas.width = SVG_WIDTH * 2; canvas.height = SVG_HEIGHT * 2;
+                            const ctx = canvas.getContext('2d'); ctx.scale(2, 2);
+                            ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, SVG_WIDTH, SVG_HEIGHT);
+                            ctx.drawImage(img, 0, 0, SVG_WIDTH, SVG_HEIGHT);
+                            const link = document.createElement('a'); link.download = `Fishbone-${Date.now()}.png`; link.href = canvas.toDataURL('image/png'); link.click();
+                            URL.revokeObjectURL(blobURL); setIsExporting(false);
+                        };
+                        img.src = blobURL;
+                    } catch(e) { setIsExporting(false); }
+                } else {
+                    const targetRef = activeTab === '5whys' ? whysRef.current : ftaRef.current;
+                    if (targetRef) {
+                        html2canvas(targetRef, { backgroundColor: '#f8fafc', scale: 2 }).then(canvas => {
+                            const link = document.createElement('a'); link.download = `${activeTab.toUpperCase()}-${Date.now()}.png`; link.href = canvas.toDataURL('image/png'); link.click();
+                            setIsExporting(false);
+                        }).catch(() => setIsExporting(false));
+                    } else { setIsExporting(false); }
                 }
             };
 
-            // 6 KATEGORI PENUH: 3 DI ATAS (Genap), 3 DI BAWAH (Ganjil)
             const topCategories = data.categories.filter((_, idx) => idx % 2 === 0);
             const bottomCategories = data.categories.filter((_, idx) => idx % 2 !== 0);
 
@@ -555,15 +593,8 @@
                 const availableLength = SPINE_END_X - SPINE_START_X - 60;
                 const step = total > 1 ? availableLength / total : availableLength / 2;
                 const baseX = SPINE_START_X + 60 + index * step + step * 0.45;
-                const ribLength = 300;
-                const dx = Math.cos(Math.PI / 3) * ribLength; // 60 derajat
-                const dy = Math.sin(Math.PI / 3) * ribLength;
-                return { 
-                    baseX, 
-                    baseY: SPINE_Y, 
-                    tipX: baseX - dx, 
-                    tipY: isTop ? SPINE_Y - dy : SPINE_Y + dy 
-                };
+                const dx = Math.cos(Math.PI / 3) * 300; const dy = Math.sin(Math.PI / 3) * 300;
+                return { baseX, baseY: SPINE_Y, tipX: baseX - dx, tipY: isTop ? SPINE_Y - dy : SPINE_Y + dy };
             };
 
             return (
@@ -572,7 +603,7 @@
                         @media print {
                             @page { size: A4 landscape; margin: 8mm; }
                             body { background: white !important; }
-                            header, .no-print, #canvas-bg { display: none !important; }
+                            header, .no-print, #canvas-bg, .top-nav { display: none !important; }
                             .print-wrapper { height: auto !important; overflow: visible !important; display: block !important; }
                             .diagram-scalable-wrapper { transform: scale(0.58) !important; transform-origin: top left !important; margin-bottom: 20px;}
                             .table-wrapper { page-break-inside: avoid; }
@@ -580,536 +611,360 @@
                         ::-webkit-scrollbar { width: 8px; height: 8px; }
                         ::-webkit-scrollbar-track { background: #f1f5f9; }
                         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-                        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+                        
+                        /* FTA CSS Tree Styling */
+                        .fta-tree ul { display: flex; padding-top: 20px; position: relative; justify-content: center; padding-left: 0; margin: 0; }
+                        .fta-tree li { display: flex; flex-direction: column; align-items: center; list-style-type: none; position: relative; padding: 20px 10px 0 10px; }
+                        .fta-tree li::before, .fta-tree li::after { content: ''; position: absolute; top: 0; right: 50%; border-top: 2px solid #94a3b8; width: 50%; height: 20px; }
+                        .fta-tree li::after { right: auto; left: 50%; border-left: 2px solid #94a3b8; }
+                        .fta-tree li:only-child::after, .fta-tree li:only-child::before { display: none; }
+                        .fta-tree li:only-child { padding-top: 0; }
+                        .fta-tree li:first-child::before, .fta-tree li:last-child::after { border: 0 none; }
+                        .fta-tree li:last-child::before { border-right: 2px solid #94a3b8; border-radius: 0 6px 0 0; }
+                        .fta-tree li:first-child::after { border-radius: 6px 0 0 0; }
+                        .fta-tree ul::before { content: ''; position: absolute; top: 0; left: calc(50% - 1px); border-left: 2px solid #94a3b8; width: 0; height: 20px; }
+                        .fta-tree > ul::before { display: none; }
+                        .fta-tree > ul { padding-top: 0; }
                     `}</style>
 
-                    {/* HEADER */}
-                    <header className="h-16 bg-white border-b border-slate-200 px-4 md:px-6 flex items-center justify-between z-30 shrink-0 shadow-sm sticky top-0">
+                    {/* MAIN HEADER */}
+                    <header className="h-16 bg-white border-b border-slate-200 px-4 md:px-6 flex items-center justify-between z-30 shrink-0 shadow-sm sticky top-0 top-nav">
                         <div className="flex items-center space-x-3">
                             <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center shadow-md">
-                                <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12h14" /><path d="M16 12l5-5v10z" /><path d="M6 12l3-5" /><path d="M6 12l3 5" /><path d="M11 12l3-5" /><path d="M11 12l3 5" /></svg>
+                                <AlignEndHorizontal className="w-5 h-5 text-white transform rotate-180" />
                             </div>
                             <div>
                                 <h1 className="text-lg font-bold tracking-tight text-slate-800 flex items-center gap-2">
-                                    Fishbone Studio <span className="text-[10px] font-medium uppercase px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 border border-blue-200">6M Independent Drag</span>
+                                    RCA Studio <span className="text-[10px] font-medium uppercase px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 border border-blue-200">Suite</span>
                                 </h1>
-                                <p className="text-xs text-slate-500 hidden sm:block">Akar Masalah & Rencana Aksi Terintegrasi</p>
                             </div>
                         </div>
 
-                        <div className="flex items-center space-x-2">
-                            <div className="relative">
-                                <button onClick={() => setShowPresetsMenu(!showPresetsMenu)} className="flex items-center space-x-1.5 px-3 py-1.5 text-sm font-medium bg-white hover:bg-slate-50 rounded-lg border border-slate-300 text-slate-700 transition">
-                                    <Layers className="w-4 h-4 text-blue-600" /> <span className="hidden md:inline">{PRESETS[activePreset]?.name || 'Template'}</span> <ChevronDown className="w-3.5 h-3.5" />
-                                </button>
-                                {showPresetsMenu && (
-                                    <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-200 p-1.5 z-50">
-                                        <div className="text-[11px] font-semibold text-slate-500 uppercase px-2 py-1">Pilih Template</div>
-                                        {Object.keys(PRESETS).map((key) => (
-                                            <button key={key} onClick={() => { setData(formatPresetData(PRESETS[key])); setActivePreset(key); setShowPresetsMenu(false); }} className={`w-full text-left px-3 py-2 text-xs rounded-lg flex justify-between ${activePreset === key ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-slate-600 hover:bg-slate-100'}`}>
-                                                <span>{PRESETS[key].name}</span>{activePreset === key && <Check className="w-3.5 h-3.5 text-blue-600" />}
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
+                        {/* DESKTOP TABS */}
+                        <div className="hidden md:flex bg-slate-100 p-1 rounded-lg border border-slate-200">
+                            <button onClick={() => setActiveTab('fishbone')} className={`px-4 py-1.5 text-sm font-semibold rounded-md transition ${activeTab === 'fishbone' ? 'bg-white shadow text-blue-700' : 'text-slate-600 hover:text-slate-900'}`}>Fishbone (6M)</button>
+                            <button onClick={() => setActiveTab('5whys')} className={`px-4 py-1.5 text-sm font-semibold rounded-md transition ${activeTab === '5whys' ? 'bg-white shadow text-blue-700' : 'text-slate-600 hover:text-slate-900'}`}>5 Whys</button>
+                            <button onClick={() => setActiveTab('fta')} className={`px-4 py-1.5 text-sm font-semibold rounded-md transition ${activeTab === 'fta' ? 'bg-white shadow text-blue-700' : 'text-slate-600 hover:text-slate-900'}`}>Fault Tree (FTA)</button>
+                        </div>
 
+                        <div className="flex items-center space-x-2">
                             <button onClick={() => setShowAIModal(true)} className="flex items-center space-x-1.5 px-3 py-1.5 text-sm font-medium bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg transition">
-                                <Bot className="w-4 h-4" /><span className="hidden sm:inline">AI Generate (6M Penuh)</span>
+                                <Bot className="w-4 h-4" /><span className="hidden sm:inline">AI Generate</span>
                             </button>
-                            <button onClick={handleAddCategory} className="flex items-center space-x-1.5 px-3 py-1.5 text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm transition">
-                                <Plus className="w-4 h-4" /><span className="hidden sm:inline">Kategori</span>
-                            </button>
-                            <div className="h-5 w-px bg-slate-300 hidden sm:block mx-1" />
+                            <div className="h-5 w-px bg-slate-300 mx-1" />
                             <button onClick={exportPNG} className="flex items-center px-3 py-1.5 text-sm font-medium bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 rounded-lg transition">
-                                <Download className="w-4 h-4 text-emerald-600 mr-1.5" /><span className="hidden md:inline">PNG</span>
+                                <Download className="w-4 h-4 text-emerald-600 sm:mr-1.5" /><span className="hidden sm:inline">Export PNG</span>
                             </button>
                             <button onClick={() => window.print()} className="flex items-center px-3 py-1.5 text-sm font-medium bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 rounded-lg transition">
-                                <Printer className="w-4 h-4 text-purple-600 mr-1.5" /><span className="hidden md:inline">Print/PDF</span>
+                                <Printer className="w-4 h-4 text-purple-600 sm:mr-1.5" /><span className="hidden sm:inline">Print/PDF</span>
                             </button>
                         </div>
                     </header>
 
-                    {/* CANVAS WORKSPACE DENGAN TULANG INTERAKTIF INDEPENDEN */}
-                    <div ref={containerRef} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onWheel={handleWheel} className={`relative w-full h-[62vh] shrink-0 bg-slate-50 overflow-hidden flex items-center justify-center border-b border-slate-200 shadow-inner cursor-${isPanning ? 'grabbing' : 'grab'} print-wrapper`}>
-                        <div id="canvas-bg" className="absolute inset-0 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:24px_24px] opacity-60 pointer-events-none" />
-                        
-                        <div className="absolute bottom-4 left-4 flex items-center bg-white border border-slate-200 rounded-xl p-1 shadow-sm z-20 no-print">
-                            <button onClick={() => setZoom(z => Math.min(2.2, z + 0.15))} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600"><ZoomIn className="w-4 h-4" /></button>
-                            <span className="text-xs font-mono px-2 text-slate-500 w-12 text-center">{Math.round(zoom * 100)}%</span>
-                            <button onClick={() => setZoom(z => Math.max(0.4, z - 0.15))} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600"><ZoomOut className="w-4 h-4" /></button>
-                            <div className="h-4 w-px bg-slate-200 mx-1" />
-                            <button onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600"><RotateCcw className="w-4 h-4" /></button>
-                        </div>
-
-                        <div className="absolute top-3 left-4 text-xs text-slate-500 pointer-events-none no-print flex items-center gap-1.5 bg-white/80 backdrop-blur px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm">
-                            <Move className="w-3.5 h-3.5 text-blue-600" />
-                            <span><b>Bebas Geser Independen:</b> Menggeser Cause tidak akan menggerakkan Sub-cause, begitu pula sebaliknya. Tarik titik bulat pada tulang untuk mengatur sudut.</span>
-                        </div>
-
-                        <div style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, transformOrigin: 'center center', transition: isPanning ? 'none' : 'transform 0.1s ease-out' }} className="relative diagram-scalable-wrapper">
-                            <svg ref={svgRef} width={SVG_WIDTH} height={SVG_HEIGHT} viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`} className="overflow-visible filter drop-shadow-md">
-                                <defs>
-                                    <marker id="spine-arrow-light" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
-                                        <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#64748b" />
-                                    </marker>
-                                </defs>
-
-                                <rect x="16" y="16" width={SVG_WIDTH - 32} height={SVG_HEIGHT - 32} rx="20" fill="#ffffff" stroke="#e2e8f0" strokeWidth="2" className="canvas-outer-bg" />
-
-                                {/* TULANG BELAKANG UTAMA (SPINE) */}
-                                <g className="fish-tail">
-                                    <path d={`M ${SPINE_START_X} ${SPINE_Y} L ${SPINE_START_X - 55} ${SPINE_Y - 50} Q ${SPINE_START_X - 70} ${SPINE_Y} ${SPINE_START_X - 55} ${SPINE_Y + 50} Z`} fill="#f1f5f9" stroke="#94a3b8" strokeWidth="2.5" />
-                                    <path d={`M ${SPINE_START_X - 15} ${SPINE_Y - 20} L ${SPINE_START_X - 45} ${SPINE_Y - 35}`} stroke="#cbd5e1" strokeWidth="2" />
-                                    <path d={`M ${SPINE_START_X - 15} ${SPINE_Y + 20} L ${SPINE_START_X - 45} ${SPINE_Y + 35}`} stroke="#cbd5e1" strokeWidth="2" />
-                                </g>
-                                <line x1={SPINE_START_X} y1={SPINE_Y} x2={SPINE_END_X} y2={SPINE_Y} stroke="#94a3b8" strokeWidth="4.5" strokeLinecap="round" markerEnd="url(#spine-arrow-light)" />
-
-                                {/* 6M FULL CATEGORIES (3 DI ATAS, 3 DI BAWAH) */}
-                                {[topCategories, bottomCategories].map((cats, isBottomIdx) => {
-                                    const isTop = isBottomIdx === 0;
-                                    return cats.map((cat, idx) => {
-                                        const { baseX, baseY, tipX, tipY } = getRibMetrics(idx, cats.length, isTop);
-                                        const bDx = (cat.boneOffsetX||0) + (tempOffsets[`bone-${cat.id}`]?.dx||0);
-                                        const bDy = (cat.boneOffsetY||0) + (tempOffsets[`bone-${cat.id}`]?.dy||0);
-                                        const actualBaseX = baseX + bDx, actualBaseY = baseY + bDy;
-                                        const actualTipX = tipX + bDx + (cat.offsetX||0) + (tempOffsets[cat.id]?.dx||0);
-                                        const actualTipY = tipY + bDy + (cat.offsetY||0) + (tempOffsets[cat.id]?.dy||0);
-
-                                        return (
-                                            <g key={cat.id}>
-                                                {/* 1. TULANG KATEGORI UTAMA (DIAGONAL 60 DERAJAT) */}
-                                                <g className="cursor-grab active:cursor-grabbing group" onPointerDown={(e) => startDrag(e, 'cat_bone', `bone-${cat.id}`, cat.id)}>
-                                                    <line x1={actualBaseX} y1={actualBaseY} x2={actualTipX} y2={actualTipY} stroke="transparent" strokeWidth="20" />
-                                                    <line x1={actualBaseX} y1={actualBaseY} x2={actualTipX} y2={actualTipY} stroke={cat.color} strokeWidth="3.5" strokeLinecap="round" />
-                                                    <circle cx={actualBaseX} cy={actualBaseY} r="6" fill="#ffffff" stroke={cat.color} strokeWidth="3" className="hover:scale-125 transition-transform" />
-                                                </g>
-
-                                                {/* 2. CABANG TULANG PENYEBAB & ANAK TULANG SUB-PENYEBAB INDEPENDEN */}
-                                                {cat.causes.map((cause, cIdx) => {
-                                                    const baseRatio = (cIdx + 1) / (cat.causes.length + 1);
-                                                    const jointRatio = Math.max(0.15, Math.min(0.85, baseRatio + (cause.jointOffsetRatio || 0)));
-                                                    
-                                                    // Titik Persendian di Tulang Kategori
-                                                    const jointDx = tempOffsets[`joint-${cause.id}`]?.dx || 0;
-                                                    const jointDy = tempOffsets[`joint-${cause.id}`]?.dy || 0;
-                                                    const jointX = actualBaseX + (actualTipX - actualBaseX) * jointRatio + jointDx;
-                                                    const jointY = actualBaseY + (actualTipY - actualBaseY) * jointRatio + jointDy;
-
-                                                    // KOORDINAT KOTAK CAUSE (TERISOLASI)
-                                                    const cDx = tempOffsets[cause.id]?.dx || 0;
-                                                    const cDy = tempOffsets[cause.id]?.dy || 0;
-                                                    const cDw = tempOffsets[`resize-${cause.id}`]?.dw || 0;
-
-                                                    const causeW = Math.max(120, (cause.customWidth || 140) + cDw);
-                                                    const causeLines = wrapText(cause.text || '', Math.floor((causeW - 20) / 7.2));
-                                                    const causeH = Math.max(32, causeLines.length * 14 + 14);
-
-                                                    const defaultCauseX = jointX - 110 - causeW;
-                                                    const defaultCauseY = jointY - causeH / 2;
-                                                    const causeBoxX = defaultCauseX + (cause.offsetX || 0) + cDx;
-                                                    const causeBoxY = defaultCauseY + (cause.offsetY || 0) + cDy;
-
-                                                    const causeAnchorX = causeBoxX + causeW;
-                                                    const causeAnchorY = causeBoxY + causeH / 2;
-
-                                                    // KOORDINAT KOTAK SUB-CAUSE (TERISOLASI DARI PERGERAKAN CAUSE)
-                                                    const subDx = tempOffsets[`sub-${cause.id}`]?.dx || 0;
-                                                    const subDy = tempOffsets[`sub-${cause.id}`]?.dy || 0;
-
-                                                    const subW = Math.max(130, 150 + cDw);
-                                                    const subLines = wrapText(cause.subCause || '(Klik 2x isi detail)', Math.floor((subW - 24) / 6.2));
-                                                    const subH = Math.max(26, subLines.length * 12 + 14);
-
-                                                    // Titik dasar sub-cause mengacu pada joint stabil, BUKAN kotak cause yang sedang ditarik
-                                                    const defaultSubX = jointX - 110 - subW;
-                                                    const defaultSubY = jointY + (isTop ? -55 : 55);
-                                                    const subBoxX = defaultSubX + (cause.subOffsetX || 0) + subDx;
-                                                    const subBoxY = defaultSubY + (cause.subOffsetY || 0) + subDy;
-
-                                                    const subAnchorX = subBoxX + subW;
-                                                    const subAnchorY = subBoxY + subH / 2;
-
-                                                    // Titik pangkal anak tulang sub-cause menempel di tengah tulang cause
-                                                    const subOriginX = (jointX + causeAnchorX) / 2;
-                                                    const subOriginY = (jointY + causeAnchorY) / 2;
-
-                                                    const isHighlighted = highlightedCause === cause.id;
-
-                                                    return (
-                                                        <g key={cause.id} className="cause-hierarchical-group">
-                                                            
-                                                            {/* TULANG PENYEBAB (GARIS KE KOTAK CAUSE) */}
-                                                            <line 
-                                                                x1={jointX} 
-                                                                y1={jointY} 
-                                                                x2={causeAnchorX} 
-                                                                y2={causeAnchorY} 
-                                                                stroke={cat.color} 
-                                                                strokeWidth="2.5" 
-                                                                strokeLinecap="round" 
-                                                            />
-
-                                                            {/* TITIK PERSENDIAN CAUSE (BISA DITARIK NAIK-TURUN DI TULANG UTAMA) */}
-                                                            <circle 
-                                                                cx={jointX} 
-                                                                cy={jointY} 
-                                                                r="4.5" 
-                                                                fill="#ffffff" 
-                                                                stroke={cat.color} 
-                                                                strokeWidth="2.5" 
-                                                                className="cursor-ns-resize hover:scale-150 transition-transform no-print"
-                                                                title="Tarik untuk geser posisi cabang di tulang utama"
-                                                                onPointerDown={(e) => startDrag(e, 'cause_joint', `joint-${cause.id}`, cat.id, cause.id)}
-                                                            />
-
-                                                            {/* ANAK TULANG SUB-PENYEBAB (GARIS KE KOTAK SUB-CAUSE) */}
-                                                            <line 
-                                                                x1={subOriginX} 
-                                                                y1={subOriginY} 
-                                                                x2={subAnchorX} 
-                                                                y2={subAnchorY} 
-                                                                stroke="#64748B" 
-                                                                strokeWidth="1.8" 
-                                                                strokeDasharray="3 2" 
-                                                                strokeLinecap="round" 
-                                                            />
-                                                            <circle cx={subOriginX} cy={subOriginY} r="3" fill="#64748B" />
-
-                                                            {/* KOTAK SUB-CAUSE (DIGESER BEBAS SECARA TERPISAH TANPA MEMPENGARUHI CAUSE) */}
-                                                            <g 
-                                                                className="cursor-grab active:cursor-grabbing group/sub"
-                                                                onPointerDown={(e) => startDrag(e, 'subcause', `sub-${cause.id}`, cat.id, cause.id)}
-                                                                onDoubleClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    setEditingItem({
-                                                                        catId: cat.id,
-                                                                        causeIndex: cIdx,
-                                                                        text: cause.text,
-                                                                        subCause: cause.subCause || ''
-                                                                    });
-                                                                }}
-                                                            >
-                                                                <rect 
-                                                                    x={subBoxX} 
-                                                                    y={subBoxY} 
-                                                                    width={subW} 
-                                                                    height={subH} 
-                                                                    rx="4" 
-                                                                    fill="#F8FAFC" 
-                                                                    stroke="#94A3B8" 
-                                                                    strokeWidth="1.2" 
-                                                                    className="shadow-xs hover:stroke-blue-500 hover:shadow-md transition" 
-                                                                />
-                                                                <path d={`M ${subBoxX} ${subBoxY} L ${subBoxX + 3.5} ${subBoxY} L ${subBoxX + 3.5} ${subBoxY + subH} L ${subBoxX} ${subBoxY + subH} Z`} fill="#64748B" />
-                                                                <text x={subBoxX + 8} y={subBoxY + 11} fill={cat.color} fontSize="8" fontWeight="800" letterSpacing="0.04em">↳ SUB-CAUSE:</text>
-                                                                {subLines.map((sLine, sIdx) => (
-                                                                    <text key={sIdx} x={subBoxX + 8} y={subBoxY + 22 + sIdx * 12} fill="#334155" fontSize="9" fontFamily="sans-serif" fontStyle="italic" className="pointer-events-none">
-                                                                        {sLine}
-                                                                    </text>
-                                                                ))}
-                                                            </g>
-
-                                                            {/* KOTAK CAUSE UTAMA (DIGESER BEBAS SECARA TERPISAH TANPA MENARIK SUB-CAUSE) */}
-                                                            <g 
-                                                                className="cursor-grab active:cursor-grabbing group/cause"
-                                                                onPointerDown={(e) => startDrag(e, 'cause', cause.id, cat.id, cause.id)}
-                                                                onDoubleClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    setEditingItem({
-                                                                        catId: cat.id,
-                                                                        causeIndex: cIdx,
-                                                                        text: cause.text,
-                                                                        subCause: cause.subCause || ''
-                                                                    });
-                                                                }}
-                                                            >
-                                                                {isHighlighted && <rect x={causeBoxX-3} y={causeBoxY-3} width={causeW+6} height={causeH+6} rx="8" fill="none" stroke="#FBBF24" strokeWidth="3" className="animate-pulse" />}
-                                                                <rect 
-                                                                    x={causeBoxX} 
-                                                                    y={causeBoxY} 
-                                                                    width={causeW} 
-                                                                    height={causeH} 
-                                                                    rx="5" 
-                                                                    fill={isHighlighted ? '#FEF9C3' : '#ffffff'} 
-                                                                    stroke={isHighlighted ? '#F59E0B' : cat.color} 
-                                                                    strokeWidth="1.8" 
-                                                                    className="shadow-sm hover:stroke-blue-600 hover:shadow-md transition" 
-                                                                />
-                                                                <rect x={causeBoxX} y={causeBoxY} width="4" height={causeH} rx="2" fill={cat.color} />
-                                                                {causeLines.map((line, lIdx) => (
-                                                                    <text key={lIdx} x={causeBoxX + 10} y={causeBoxY + 14 + lIdx * 14} fill="#0f172a" fontSize="10.5" fontFamily="sans-serif" fontWeight="700" className="pointer-events-none">
-                                                                        {line}
-                                                                    </text>
-                                                                ))}
-
-                                                                {/* Titik Resize Kotak Cause */}
-                                                                <path d={`M ${causeBoxX+causeW-10} ${causeBoxY+causeH} L ${causeBoxX+causeW} ${causeBoxY+causeH} L ${causeBoxX+causeW} ${causeBoxY+causeH-10} Z`} fill="#cbd5e1" className="cursor-nwse-resize no-print hover:fill-blue-500" onPointerDown={(e) => startResize(e, cause.id, cat.id, causeW)} />
-                                                                
-                                                                {/* Tombol Hapus Baris Cause */}
-                                                                <g className="opacity-0 hover:opacity-100 transition no-print cursor-pointer" onPointerDown={e => e.stopPropagation()} onClick={e => handleDeleteCause(cat.id, cIdx, e)}>
-                                                                    <rect x={causeBoxX+causeW-18} y={causeBoxY-8} width="16" height="16" rx="8" fill="#ef4444" />
-                                                                    <text x={causeBoxX+causeW-14} y={causeBoxY+4} fill="#fff" fontSize="10" fontWeight="bold">×</text>
-                                                                </g>
-                                                            </g>
-
-                                                        </g>
-                                                    );
-                                                })}
-
-                                                {/* 3. KOTAK KATEGORI (DI UJUNG TULANG KATEGORI) */}
-                                                {(() => {
-                                                    const lines = wrapText(cat.name, 18);
-                                                    const catW = Math.max(120, Math.max(...lines.map(l => l.length)) * 8 + 40);
-                                                    const catH = lines.length * 16 + 16;
-                                                    const cBoxX = actualTipX - catW/2, cBoxY = isTop ? actualTipY - catH - 5 : actualTipY + 5;
-                                                    
-                                                    return (
-                                                        <g className="cursor-grab active:cursor-grabbing" onPointerDown={e => startDrag(e, 'cat', cat.id)}>
-                                                            <rect x={cBoxX} y={cBoxY} width={catW} height={catH} rx="6" fill="#ffffff" stroke={cat.color} strokeWidth="2.5" className="shadow-sm hover:shadow-md transition" />
-                                                            {lines.map((l, i) => <text key={i} x={cBoxX + 12} y={cBoxY + 20 + i*16} fill="#0f172a" fontSize="12" fontWeight="bold" fontFamily="sans-serif" className="pointer-events-none">{l}</text>)}
-                                                            
-                                                            <g className="cursor-pointer hover:opacity-80 no-print" onPointerDown={e=>e.stopPropagation()} onClick={e=>handleAddCause(cat.id, e)}>
-                                                                <circle cx={cBoxX+catW-26} cy={cBoxY+catH/2} r="8" fill="#f1f5f9" stroke="#cbd5e1" /><text x={cBoxX+catW-26} y={cBoxY+catH/2+4} textAnchor="middle" fill="#475569" fontSize="12" fontWeight="bold">+</text>
-                                                            </g>
-                                                            <g className="cursor-pointer hover:opacity-80 no-print" onPointerDown={e=>e.stopPropagation()} onClick={e=>handleDeleteCategory(cat.id, e)}>
-                                                                <circle cx={cBoxX+catW-8} cy={cBoxY+catH/2} r="8" fill="#fee2e2" stroke="#fca5a5" /><text x={cBoxX+catW-8} y={cBoxY+catH/2+3} textAnchor="middle" fill="#ef4444" fontSize="10" fontWeight="bold">×</text>
-                                                            </g>
-                                                        </g>
-                                                    );
-                                                })()}
-                                            </g>
-                                        );
-                                    });
-                                })}
-
-                                {/* KEPALA IKAN (PROBLEM STATEMENT) */}
-                                <g className="cursor-grab active:cursor-grabbing" transform={`translate(${(data.problemOffsetX||0)+(tempOffsets['problem']?.dx||0)}, ${(data.problemOffsetY||0)+(tempOffsets['problem']?.dy||0)})`} onPointerDown={e => startDrag(e, 'problem', 'problem')}>
-                                    <path d={`M ${SPINE_END_X} ${SPINE_Y - 95} C ${SPINE_END_X + 90} ${SPINE_Y - 95}, ${SPINE_END_X + 170} ${SPINE_Y - 55}, ${SPINE_END_X + 220} ${SPINE_Y} C ${SPINE_END_X + 170} ${SPINE_Y + 55}, ${SPINE_END_X + 90} ${SPINE_Y + 95}, ${SPINE_END_X} ${SPINE_Y + 95} Z`} fill="#ffffff" stroke="#2563eb" strokeWidth="2.5" className="drop-shadow-md" />
-                                    <circle cx={SPINE_END_X + 175} cy={SPINE_Y - 35} r="6" fill="#3b82f6" />
-                                    
-                                    <rect x={SPINE_END_X - 5} y={SPINE_Y - 50} width="170" height="100" rx="8" fill="#f8fafc" stroke="#bfdbfe" strokeWidth="1.5" />
-                                    <text x={SPINE_END_X + 10} y={SPINE_Y - 32} fill="#2563eb" fontSize="10" fontWeight="bold" fontFamily="sans-serif" className="pointer-events-none">MASALAH (EFFECT)</text>
-                                    {wrapText(data.problem, 20).slice(0,4).map((line, i) => <text key={i} x={SPINE_END_X + 10} y={SPINE_Y - 12 + i*16} fill="#0f172a" fontSize="12" fontWeight="700" fontFamily="sans-serif" className="pointer-events-none">{line}</text>)}
-                                </g>
-                            </svg>
-                        </div>
+                    {/* MOBILE TABS */}
+                    <div className="md:hidden flex bg-white border-b border-slate-200 top-nav overflow-x-auto">
+                        <button onClick={() => setActiveTab('fishbone')} className={`flex-1 px-4 py-3 text-sm font-semibold border-b-2 whitespace-nowrap transition ${activeTab === 'fishbone' ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500'}`}>Fishbone</button>
+                        <button onClick={() => setActiveTab('5whys')} className={`flex-1 px-4 py-3 text-sm font-semibold border-b-2 whitespace-nowrap transition ${activeTab === '5whys' ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500'}`}>5 Whys</button>
+                        <button onClick={() => setActiveTab('fta')} className={`flex-1 px-4 py-3 text-sm font-semibold border-b-2 whitespace-nowrap transition ${activeTab === 'fta' ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500'}`}>Fault Tree</button>
                     </div>
 
-                    {/* ACTION PLAN TABLE & SUMMARY */}
-                    <div className="flex-1 w-full max-w-7xl mx-auto p-4 md:p-8 table-wrapper bg-slate-50 space-y-6">
-                        
-                        {data.conclusion && (
-                            <div className="bg-white border border-blue-200 rounded-xl p-5 shadow-sm flex items-start gap-4">
-                                <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl shrink-0 mt-0.5">
-                                    <FileText className="w-5 h-5" />
+                    {/* =========================================
+                        TOOL 1: FISHBONE
+                        ========================================= */}
+                    {activeTab === 'fishbone' && (
+                        <div className="flex flex-col flex-1 animate-in fade-in duration-300">
+                            <div ref={containerRef} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onWheel={handleWheel} className={`relative w-full h-[62vh] shrink-0 bg-slate-50 overflow-hidden flex items-center justify-center border-b border-slate-200 shadow-inner cursor-${isPanning ? 'grabbing' : 'grab'} print-wrapper`}>
+                                <div id="canvas-bg" className="absolute inset-0 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:24px_24px] opacity-60 pointer-events-none" />
+                                
+                                <div className="absolute bottom-4 left-4 flex items-center bg-white border border-slate-200 rounded-xl p-1 shadow-sm z-20 no-print">
+                                    <button onClick={() => setZoom(z => Math.min(2.2, z + 0.15))} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600"><ZoomIn className="w-4 h-4" /></button>
+                                    <span className="text-xs font-mono px-2 text-slate-500 w-12 text-center">{Math.round(zoom * 100)}%</span>
+                                    <button onClick={() => setZoom(z => Math.max(0.4, z - 0.15))} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600"><ZoomOut className="w-4 h-4" /></button>
+                                    <div className="h-4 w-px bg-slate-200 mx-1" />
+                                    <button onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600"><RotateCcw className="w-4 h-4" /></button>
                                 </div>
-                                <div className="flex-1">
-                                    <h3 className="text-xs font-bold text-blue-800 uppercase tracking-wider mb-1">Executive Conclusion (Sintesis RCA 6M)</h3>
-                                    <textarea 
-                                        rows="2"
-                                        value={data.conclusion}
-                                        onChange={(e) => setData(prev => ({ ...prev, conclusion: e.target.value }))}
-                                        className="w-full text-sm text-slate-700 bg-transparent outline-none resize-none font-medium leading-relaxed"
-                                        placeholder="Ringkasan eksekutif akar masalah..."
-                                    />
-                                </div>
-                            </div>
-                        )}
 
-                        <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-                            <div className="px-6 py-4 border-b border-slate-200 flex flex-wrap gap-4 justify-between items-center bg-white">
-                                <div>
-                                    <h2 className="text-lg font-bold text-[#005073] uppercase tracking-wide">Corrective Action Plan (CAPA)</h2>
-                                    <p className="text-xs text-slate-500 mt-0.5">Semua data tabel terhubung langsung ke tulang dan anak cabang diagram di atas.</p>
+                                <div className="absolute top-3 left-4 text-xs text-slate-500 pointer-events-none no-print flex items-center gap-1.5 bg-white/80 backdrop-blur px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm">
+                                    <Move className="w-3.5 h-3.5 text-blue-600" />
+                                    <span><b>Bebas Geser Independen:</b> Tarik titik bulat persendian untuk menggeser posisi cabang di tulang utama. Kotak sub-cause dan cause bisa ditarik ke segala arah.</span>
                                 </div>
-                                <button onClick={() => { if(data.categories.length > 0) handleAddCause(data.categories[0].id); }} className="bg-[#059669] hover:bg-[#047857] text-white px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 shadow-sm no-print">
-                                    <Plus className="w-4 h-4" /> Tambah Baris Manual
-                                </button>
-                            </div>
-                            
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-sm text-left border-collapse">
-                                    <thead className="bg-[#005073] text-white">
-                                        <tr>
-                                            <th className="border-b border-slate-300 p-3 font-semibold w-40">Category</th>
-                                            <th className="border-b border-slate-300 p-3 font-semibold w-64">Main Cause (Tulang Cabang)</th>
-                                            <th className="border-b border-slate-300 p-3 font-semibold min-w-[280px]">Sub Cause (Anak Tulang)</th>
-                                            <th className="border-b border-slate-300 p-3 font-semibold min-w-[280px]">Corrective Action Plan</th>
-                                            <th className="border-b border-slate-300 p-3 font-semibold w-28">PIC</th>
-                                            <th className="border-b border-slate-300 p-3 font-semibold w-28">Due Date</th>
-                                            <th className="border-b border-slate-300 p-3 font-semibold w-12 text-center no-print">Act</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-200 bg-white">
-                                        {data.categories.length === 0 && (
-                                            <tr><td colSpan="7" className="p-6 text-center text-slate-500">Belum ada data. Silakan gunakan AI Generate atau pilih preset 6M.</td></tr>
-                                        )}
-                                        {data.categories.map((cat) => (
-                                            cat.causes.map((cause, idx) => {
-                                                const isHighlighted = highlightedCause === cause.id;
+
+                                <div style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, transformOrigin: 'center center', transition: isPanning ? 'none' : 'transform 0.1s ease-out' }} className="relative diagram-scalable-wrapper">
+                                    <svg ref={svgRef} width={SVG_WIDTH} height={SVG_HEIGHT} viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`} className="overflow-visible filter drop-shadow-md">
+                                        <defs><marker id="spine-arrow-light" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#64748b" /></marker></defs>
+                                        <rect x="16" y="16" width={SVG_WIDTH - 32} height={SVG_HEIGHT - 32} rx="20" fill="#ffffff" stroke="#e2e8f0" strokeWidth="2" className="canvas-outer-bg" />
+
+                                        <g className="fish-tail">
+                                            <path d={`M ${SPINE_START_X} ${SPINE_Y} L ${SPINE_START_X - 55} ${SPINE_Y - 50} Q ${SPINE_START_X - 70} ${SPINE_Y} ${SPINE_START_X - 55} ${SPINE_Y + 50} Z`} fill="#f1f5f9" stroke="#94a3b8" strokeWidth="2.5" />
+                                            <path d={`M ${SPINE_START_X - 15} ${SPINE_Y - 20} L ${SPINE_START_X - 45} ${SPINE_Y - 35}`} stroke="#cbd5e1" strokeWidth="2" />
+                                            <path d={`M ${SPINE_START_X - 15} ${SPINE_Y + 20} L ${SPINE_START_X - 45} ${SPINE_Y + 35}`} stroke="#cbd5e1" strokeWidth="2" />
+                                        </g>
+                                        <line x1={SPINE_START_X} y1={SPINE_Y} x2={SPINE_END_X} y2={SPINE_Y} stroke="#94a3b8" strokeWidth="4.5" strokeLinecap="round" markerEnd="url(#spine-arrow-light)" />
+
+                                        {[topCategories, bottomCategories].map((cats, isBottomIdx) => {
+                                            const isTop = isBottomIdx === 0;
+                                            return cats.map((cat, idx) => {
+                                                const { baseX, baseY, tipX, tipY } = getRibMetrics(idx, cats.length, isTop);
+                                                const bDx = (cat.boneOffsetX||0) + (tempOffsets[`bone-${cat.id}`]?.dx||0); const bDy = (cat.boneOffsetY||0) + (tempOffsets[`bone-${cat.id}`]?.dy||0);
+                                                const actualBaseX = baseX + bDx, actualBaseY = baseY + bDy, actualTipX = tipX + bDx + (cat.offsetX||0) + (tempOffsets[cat.id]?.dx||0), actualTipY = tipY + bDy + (cat.offsetY||0) + (tempOffsets[cat.id]?.dy||0);
+
                                                 return (
-                                                    <tr 
-                                                        key={cause.id} 
-                                                        onClick={() => setHighlightedCause(cause.id)}
-                                                        className={`transition-colors cursor-pointer ${isHighlighted ? 'bg-yellow-50/80 ring-1 ring-yellow-400 inset-0' : 'hover:bg-slate-50'}`}
-                                                    >
-                                                        {idx === 0 && (
-                                                            <td rowSpan={cat.causes.length} className="border-r border-slate-200 p-3 align-top bg-slate-50/50">
-                                                                <input 
-                                                                    value={cat.name} 
-                                                                    onChange={(e) => {
-                                                                        const val = e.target.value;
-                                                                        setData(prev => ({
-                                                                            ...prev,
-                                                                            categories: prev.categories.map(c => c.id === cat.id ? { ...c, name: val } : c)
-                                                                        }));
-                                                                    }} 
-                                                                    className="w-full bg-transparent font-bold text-slate-700 outline-none focus:border-b border-blue-500" 
-                                                                    title="Edit Nama Kategori"
-                                                                />
-                                                            </td>
-                                                        )}
-                                                        <td className="p-2 border-r border-slate-200 align-top">
-                                                            <textarea 
-                                                                rows="3"
-                                                                value={cause.text} 
-                                                                onChange={(e) => handleTableEdit(cat.id, cause.id, 'text', e.target.value)} 
-                                                                className={`w-full bg-transparent outline-none resize-none p-1 rounded font-medium ${isHighlighted ? 'text-yellow-900' : 'text-slate-800'}`} 
-                                                                placeholder="Tulis Akar Penyebab..."
-                                                            />
-                                                        </td>
-                                                        <td className="p-2 border-r border-slate-200 align-top">
-                                                            <textarea 
-                                                                rows="4" 
-                                                                value={cause.subCause} 
-                                                                onChange={(e) => handleTableEdit(cat.id, cause.id, 'subCause', e.target.value)} 
-                                                                className="w-full bg-transparent outline-none resize-y p-1 text-slate-600 leading-relaxed text-xs" 
-                                                                placeholder="Mekanisme detail (langsung muncul di anak tulang)..." 
-                                                            />
-                                                        </td>
-                                                        <td className="p-2 border-r border-slate-200 align-top">
-                                                            <textarea 
-                                                                rows="4" 
-                                                                value={cause.actionPlan} 
-                                                                onChange={(e) => handleTableEdit(cat.id, cause.id, 'actionPlan', e.target.value)} 
-                                                                className="w-full bg-transparent outline-none resize-y p-1 text-slate-700 leading-relaxed text-xs" 
-                                                                placeholder="Rencana tindakan perbaikan terukur..." 
-                                                            />
-                                                        </td>
-                                                        <td className="p-2 border-r border-slate-200 align-top">
-                                                            <input type="text" value={cause.pic} onChange={(e) => handleTableEdit(cat.id, cause.id, 'pic', e.target.value)} className="w-full bg-transparent outline-none p-1 text-slate-600 text-xs" placeholder="Nama PIC..." />
-                                                        </td>
-                                                        <td className="p-2 border-r border-slate-200 align-top">
-                                                            <input type="date" value={cause.dueDate} onChange={(e) => handleTableEdit(cat.id, cause.id, 'dueDate', e.target.value)} className="w-full bg-transparent outline-none p-1 text-slate-600 text-xs" />
-                                                        </td>
-                                                        <td className="p-2 text-center align-top no-print">
-                                                            <button onClick={(e) => handleDeleteCause(cat.id, idx, e)} className="text-red-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 transition" title="Hapus Baris">
-                                                                <Trash2 className="w-4 h-4" />
-                                                            </button>
-                                                        </td>
-                                                    </tr>
-                                                );
-                                            })
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
+                                                    <g key={cat.id}>
+                                                        <g className="cursor-grab active:cursor-grabbing group" onPointerDown={(e) => startDrag(e, 'cat_bone', `bone-${cat.id}`, cat.id)}>
+                                                            <line x1={actualBaseX} y1={actualBaseY} x2={actualTipX} y2={actualTipY} stroke="transparent" strokeWidth="20" />
+                                                            <line x1={actualBaseX} y1={actualBaseY} x2={actualTipX} y2={actualTipY} stroke={cat.color} strokeWidth="3.5" strokeLinecap="round" />
+                                                            <circle cx={actualBaseX} cy={actualBaseY} r="6" fill="#ffffff" stroke={cat.color} strokeWidth="3" className="hover:scale-125 transition-transform" />
+                                                        </g>
 
-                    {/* MODAL EDIT CEPAT DARI DIAGRAM */}
-                    {editingItem && (
-                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 no-print">
-                            <div className="bg-white border border-slate-200 w-full max-w-md rounded-2xl p-6 shadow-2xl space-y-4">
-                                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                                    <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                                        <Edit2 className="w-4 h-4 text-blue-600" />
-                                        Edit Penyebab & Sub-Cause
-                                    </h3>
-                                    <button onClick={() => setEditingItem(null)} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
-                                        <X className="w-4 h-4" />
-                                    </button>
+                                                        {cat.causes.map((cause, cIdx) => {
+                                                            const baseRatio = (cIdx + 1) / (cat.causes.length + 1);
+                                                            const jointRatio = Math.max(0.15, Math.min(0.85, baseRatio + (cause.jointOffsetRatio || 0)));
+                                                            
+                                                            const jointDx = tempOffsets[`joint-${cause.id}`]?.dx || 0; const jointDy = tempOffsets[`joint-${cause.id}`]?.dy || 0;
+                                                            const jointX = actualBaseX + (actualTipX - actualBaseX) * jointRatio + jointDx;
+                                                            const jointY = actualBaseY + (actualTipY - actualBaseY) * jointRatio + jointDy;
+
+                                                            const cDx = tempOffsets[cause.id]?.dx || 0; const cDy = tempOffsets[cause.id]?.dy || 0; const cDw = tempOffsets[`resize-${cause.id}`]?.dw || 0;
+                                                            const causeW = Math.max(120, (cause.customWidth || 140) + cDw);
+                                                            const causeLines = wrapText(cause.text || '', Math.floor((causeW - 20) / 7.2));
+                                                            const causeH = Math.max(32, causeLines.length * 14 + 14);
+
+                                                            const causeBoxX = (jointX - 110 - causeW) + (cause.offsetX || 0) + cDx;
+                                                            const causeBoxY = (jointY - causeH / 2) + (cause.offsetY || 0) + cDy;
+                                                            const causeAnchorX = causeBoxX + causeW; const causeAnchorY = causeBoxY + causeH / 2;
+
+                                                            const subOriginX = (jointX + causeAnchorX) / 2; const subOriginY = (jointY + causeAnchorY) / 2;
+                                                            const subDx = tempOffsets[`sub-${cause.id}`]?.dx || 0; const subDy = tempOffsets[`sub-${cause.id}`]?.dy || 0;
+
+                                                            const subW = Math.max(130, 150 + cDw);
+                                                            const subLines = wrapText(cause.subCause || '(Klik 2x isi detail)', Math.floor((subW - 24) / 6.2));
+                                                            const subH = Math.max(26, subLines.length * 12 + 14);
+
+                                                            const subBoxX = (jointX - 110 - subW) + (cause.subOffsetX || 0) + subDx;
+                                                            const subBoxY = (jointY + (isTop ? -55 : 55)) + (cause.subOffsetY || 0) + subDy;
+                                                            const subAnchorX = subBoxX + subW; const subAnchorY = subBoxY + subH / 2;
+                                                            const isHighlighted = highlightedCause === cause.id;
+
+                                                            return (
+                                                                <g key={cause.id} className="cause-hierarchical-group">
+                                                                    <line x1={jointX} y1={jointY} x2={causeAnchorX} y2={causeAnchorY} stroke={cat.color} strokeWidth="2.5" strokeLinecap="round" />
+                                                                    <circle cx={jointX} cy={jointY} r="4.5" fill="#ffffff" stroke={cat.color} strokeWidth="2.5" className="cursor-ns-resize no-print hover:scale-150 transition-transform" onPointerDown={(e) => startDrag(e, 'cause_joint', `joint-${cause.id}`, cat.id, cause.id)} />
+
+                                                                    <line x1={subOriginX} y1={subOriginY} x2={subAnchorX} y2={subAnchorY} stroke="#64748B" strokeWidth="1.8" strokeDasharray="3 2" strokeLinecap="round" />
+                                                                    <circle cx={subOriginX} cy={subOriginY} r="3" fill="#64748B" />
+
+                                                                    <g className="cursor-grab active:cursor-grabbing group/sub" onPointerDown={(e) => startDrag(e, 'subcause', `sub-${cause.id}`, cat.id, cause.id)} onDoubleClick={(e) => { e.stopPropagation(); setEditingItem({ catId: cat.id, causeIndex: cIdx, text: cause.text, subCause: cause.subCause || '' }); }}>
+                                                                        <rect x={subBoxX} y={subBoxY} width={subW} height={subH} rx="4" fill="#F8FAFC" stroke="#94A3B8" strokeWidth="1.2" className="shadow-xs hover:stroke-blue-500 hover:shadow-md transition" />
+                                                                        <path d={`M ${subBoxX} ${subBoxY} L ${subBoxX + 3.5} ${subBoxY} L ${subBoxX + 3.5} ${subBoxY + subH} L ${subBoxX} ${subBoxY + subH} Z`} fill="#64748B" />
+                                                                        <text x={subBoxX + 8} y={subBoxY + 11} fill={cat.color} fontSize="8" fontWeight="800" letterSpacing="0.04em">↳ SUB-CAUSE:</text>
+                                                                        {subLines.map((sLine, sIdx) => <text key={sIdx} x={subBoxX + 8} y={subBoxY + 22 + sIdx * 12} fill="#334155" fontSize="9" fontFamily="sans-serif" fontStyle="italic" className="pointer-events-none">{sLine}</text>)}
+                                                                    </g>
+
+                                                                    <g className="cursor-grab active:cursor-grabbing group/cause" onPointerDown={(e) => startDrag(e, 'cause', cause.id, cat.id, cause.id)} onDoubleClick={(e) => { e.stopPropagation(); setEditingItem({ catId: cat.id, causeIndex: cIdx, text: cause.text, subCause: cause.subCause || '' }); }}>
+                                                                        {isHighlighted && <rect x={causeBoxX-3} y={causeBoxY-3} width={causeW+6} height={causeH+6} rx="8" fill="none" stroke="#FBBF24" strokeWidth="3" className="animate-pulse" />}
+                                                                        <rect x={causeBoxX} y={causeBoxY} width={causeW} height={causeH} rx="5" fill={isHighlighted ? '#FEF9C3' : '#ffffff'} stroke={isHighlighted ? '#F59E0B' : cat.color} strokeWidth="1.8" className="shadow-sm hover:stroke-blue-600 hover:shadow-md transition" />
+                                                                        <rect x={causeBoxX} y={causeBoxY} width="4" height={causeH} rx="2" fill={cat.color} />
+                                                                        {causeLines.map((line, lIdx) => <text key={lIdx} x={causeBoxX + 10} y={causeBoxY + 14 + lIdx * 14} fill="#0f172a" fontSize="10.5" fontFamily="sans-serif" fontWeight="700" className="pointer-events-none">{line}</text>)}
+                                                                        <path d={`M ${causeBoxX+causeW-10} ${causeBoxY+causeH} L ${causeBoxX+causeW} ${causeBoxY+causeH} L ${causeBoxX+causeW} ${causeBoxY+causeH-10} Z`} fill="#cbd5e1" className="cursor-nwse-resize no-print hover:fill-blue-500" onPointerDown={(e) => startResize(e, cause.id, cat.id, causeW)} />
+                                                                        <g className="opacity-0 hover:opacity-100 transition no-print cursor-pointer" onPointerDown={e => e.stopPropagation()} onClick={e => handleDeleteCause(cat.id, cIdx, e)}><rect x={causeBoxX+causeW-18} y={causeBoxY-8} width="16" height="16" rx="8" fill="#ef4444" /><text x={causeBoxX+causeW-14} y={causeBoxY+4} fill="#fff" fontSize="10" fontWeight="bold">×</text></g>
+                                                                    </g>
+                                                                </g>
+                                                            );
+                                                        })}
+
+                                                        {(() => {
+                                                            const lines = wrapText(cat.name, 18);
+                                                            const catW = Math.max(120, Math.max(...lines.map(l => l.length)) * 8 + 40);
+                                                            const catH = lines.length * 16 + 16;
+                                                            const cBoxX = actualTipX - catW/2, cBoxY = isTop ? actualTipY - catH - 5 : actualTipY + 5;
+                                                            return (
+                                                                <g className="cursor-grab active:cursor-grabbing" onPointerDown={e => startDrag(e, 'cat', cat.id)}>
+                                                                    <rect x={cBoxX} y={cBoxY} width={catW} height={catH} rx="6" fill="#ffffff" stroke={cat.color} strokeWidth="2.5" className="shadow-sm hover:shadow-md transition" />
+                                                                    {lines.map((l, i) => <text key={i} x={cBoxX + 12} y={cBoxY + 20 + i*16} fill="#0f172a" fontSize="12" fontWeight="bold" fontFamily="sans-serif" className="pointer-events-none">{l}</text>)}
+                                                                    <g className="cursor-pointer hover:opacity-80 no-print" onPointerDown={e=>e.stopPropagation()} onClick={e=>handleAddCause(cat.id, e)}><circle cx={cBoxX+catW-26} cy={cBoxY+catH/2} r="8" fill="#f1f5f9" stroke="#cbd5e1" /><text x={cBoxX+catW-26} y={cBoxY+catH/2+4} textAnchor="middle" fill="#475569" fontSize="12" fontWeight="bold">+</text></g>
+                                                                    <g className="cursor-pointer hover:opacity-80 no-print" onPointerDown={e=>e.stopPropagation()} onClick={e=>handleDeleteCategory(cat.id, e)}><circle cx={cBoxX+catW-8} cy={cBoxY+catH/2} r="8" fill="#fee2e2" stroke="#fca5a5" /><text x={cBoxX+catW-8} y={cBoxY+catH/2+3} textAnchor="middle" fill="#ef4444" fontSize="10" fontWeight="bold">×</text></g>
+                                                                </g>
+                                                            );
+                                                        })()}
+                                                    </g>
+                                                );
+                                            });
+                                        })}
+
+                                        <g className="cursor-grab active:cursor-grabbing" transform={`translate(${(data.problemOffsetX||0)+(tempOffsets['problem']?.dx||0)}, ${(data.problemOffsetY||0)+(tempOffsets['problem']?.dy||0)})`} onPointerDown={e => startDrag(e, 'problem', 'problem')}>
+                                            <path d={`M ${SPINE_END_X} ${SPINE_Y - 95} C ${SPINE_END_X + 90} ${SPINE_Y - 95}, ${SPINE_END_X + 170} ${SPINE_Y - 55}, ${SPINE_END_X + 220} ${SPINE_Y} C ${SPINE_END_X + 170} ${SPINE_Y + 55}, ${SPINE_END_X + 90} ${SPINE_Y + 95}, ${SPINE_END_X} ${SPINE_Y + 95} Z`} fill="#ffffff" stroke="#2563eb" strokeWidth="2.5" className="drop-shadow-md" />
+                                            <circle cx={SPINE_END_X + 175} cy={SPINE_Y - 35} r="6" fill="#3b82f6" />
+                                            <rect x={SPINE_END_X - 5} y={SPINE_Y - 50} width="170" height="100" rx="8" fill="#f8fafc" stroke="#bfdbfe" strokeWidth="1.5" />
+                                            <text x={SPINE_END_X + 10} y={SPINE_Y - 32} fill="#2563eb" fontSize="10" fontWeight="bold" fontFamily="sans-serif" className="pointer-events-none">MASALAH (EFFECT)</text>
+                                            {wrapText(data.problem, 20).slice(0,4).map((line, i) => <text key={i} x={SPINE_END_X + 10} y={SPINE_Y - 12 + i*16} fill="#0f172a" fontSize="12" fontWeight="700" fontFamily="sans-serif" className="pointer-events-none">{line}</text>)}
+                                        </g>
+                                    </svg>
                                 </div>
-                                <div className="space-y-3">
-                                    <div>
-                                        <label className="text-xs text-slate-500 font-semibold block mb-1">Akar Masalah Utama (Tulang Cabang):</label>
-                                        <input 
-                                            type="text" 
-                                            id="quick-edit-cause"
-                                            defaultValue={editingItem.text}
-                                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                                        />
+                            </div>
+
+                            <div className="flex-1 w-full max-w-7xl mx-auto p-4 md:p-8 table-wrapper bg-slate-50 space-y-6">
+                                {data.conclusion && (
+                                    <div className="bg-white border border-blue-200 rounded-xl p-5 shadow-sm flex items-start gap-4">
+                                        <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl shrink-0 mt-0.5"><FileText className="w-5 h-5" /></div>
+                                        <div className="flex-1">
+                                            <h3 className="text-xs font-bold text-blue-800 uppercase tracking-wider mb-1">Executive Conclusion (Sintesis RCA 6M)</h3>
+                                            <textarea rows="2" value={data.conclusion} onChange={(e) => setData(prev => ({ ...prev, conclusion: e.target.value }))} className="w-full text-sm text-slate-700 bg-transparent outline-none resize-none font-medium leading-relaxed" />
+                                        </div>
                                     </div>
-                                    <div>
-                                        <label className="text-xs text-slate-500 font-semibold block mb-1">Sub-Cause (Anak Tulang):</label>
-                                        <textarea 
-                                            rows="3" 
-                                            id="quick-edit-subcause"
-                                            defaultValue={editingItem.subCause}
-                                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                                            placeholder="Detail lanjutan akar masalah..."
-                                        />
+                                )}
+                                <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                                    <div className="px-6 py-4 border-b border-slate-200 flex flex-wrap gap-4 justify-between items-center bg-white">
+                                        <div><h2 className="text-lg font-bold text-[#005073] uppercase tracking-wide">Corrective Action Plan (CAPA)</h2></div>
+                                        <button onClick={() => { if(data.categories.length > 0) handleAddCause(data.categories[0].id); }} className="bg-[#059669] hover:bg-[#047857] text-white px-4 py-2 rounded-lg text-sm font-medium transition no-print"><Plus className="w-4 h-4 inline mr-1" /> Tambah Baris Manual</button>
                                     </div>
-                                </div>
-                                <div className="flex justify-end space-x-2 pt-2">
-                                    <button onClick={() => setEditingItem(null)} className="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition">Batal</button>
-                                    <button 
-                                        onClick={() => {
-                                            const cInput = document.getElementById('quick-edit-cause');
-                                            const sInput = document.getElementById('quick-edit-subcause');
-                                            if (cInput && sInput) saveQuickEdit(cInput.value, sInput.value);
-                                        }} 
-                                        className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white transition flex items-center space-x-1"
-                                    >
-                                        <Check className="w-3.5 h-3.5" />
-                                        <span>Simpan</span>
-                                    </button>
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-sm text-left border-collapse">
+                                            <thead className="bg-[#005073] text-white">
+                                                <tr>
+                                                    <th className="border-b border-slate-300 p-3 font-semibold w-40">Category</th>
+                                                    <th className="border-b border-slate-300 p-3 font-semibold w-64">Main Cause</th>
+                                                    <th className="border-b border-slate-300 p-3 font-semibold min-w-[280px]">Sub Cause</th>
+                                                    <th className="border-b border-slate-300 p-3 font-semibold min-w-[280px]">Corrective Action Plan</th>
+                                                    <th className="border-b border-slate-300 p-3 font-semibold w-28">PIC</th>
+                                                    <th className="border-b border-slate-300 p-3 font-semibold w-28">Due Date</th>
+                                                    <th className="border-b border-slate-300 p-3 font-semibold w-12 text-center no-print">Act</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-200 bg-white">
+                                                {data.categories.map((cat) => (
+                                                    cat.causes.map((cause, idx) => {
+                                                        const isHighlighted = highlightedCause === cause.id;
+                                                        return (
+                                                            <tr key={cause.id} onClick={() => setHighlightedCause(cause.id)} className={`transition-colors cursor-pointer ${isHighlighted ? 'bg-yellow-50/80 ring-1 ring-yellow-400 inset-0' : 'hover:bg-slate-50'}`}>
+                                                                {idx === 0 && (
+                                                                    <td rowSpan={cat.causes.length} className="border-r border-slate-200 p-3 align-top bg-slate-50/50">
+                                                                        <input value={cat.name} onChange={(e) => { const val = e.target.value; setData(prev => ({ ...prev, categories: prev.categories.map(c => c.id === cat.id ? { ...c, name: val } : c) })); }} className="w-full bg-transparent font-bold text-slate-700 outline-none focus:border-b border-blue-500" />
+                                                                    </td>
+                                                                )}
+                                                                <td className="p-2 border-r border-slate-200 align-top"><textarea rows="3" value={cause.text} onChange={(e) => handleTableEdit(cat.id, cause.id, 'text', e.target.value)} className={`w-full bg-transparent outline-none resize-none p-1 font-medium ${isHighlighted ? 'text-yellow-900' : 'text-slate-800'}`} /></td>
+                                                                <td className="p-2 border-r border-slate-200 align-top"><textarea rows="4" value={cause.subCause} onChange={(e) => handleTableEdit(cat.id, cause.id, 'subCause', e.target.value)} className="w-full bg-transparent outline-none p-1 text-slate-600 text-xs" /></td>
+                                                                <td className="p-2 border-r border-slate-200 align-top"><textarea rows="4" value={cause.actionPlan} onChange={(e) => handleTableEdit(cat.id, cause.id, 'actionPlan', e.target.value)} className="w-full bg-transparent outline-none p-1 text-slate-700 text-xs" /></td>
+                                                                <td className="p-2 border-r border-slate-200 align-top"><input type="text" value={cause.pic} onChange={(e) => handleTableEdit(cat.id, cause.id, 'pic', e.target.value)} className="w-full bg-transparent outline-none p-1 text-slate-600 text-xs" /></td>
+                                                                <td className="p-2 border-r border-slate-200 align-top"><input type="date" value={cause.dueDate} onChange={(e) => handleTableEdit(cat.id, cause.id, 'dueDate', e.target.value)} className="w-full bg-transparent outline-none p-1 text-slate-600 text-xs" /></td>
+                                                                <td className="p-2 text-center align-top no-print"><button onClick={(e) => handleDeleteCause(cat.id, idx, e)} className="text-red-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 transition"><Trash2 className="w-4 h-4" /></button></td>
+                                                            </tr>
+                                                        );
+                                                    })
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     )}
 
-                    {/* MODAL AI */}
+                    {/* =========================================
+                        TOOL 2: 5 WHYS
+                        ========================================= */}
+                    {activeTab === '5whys' && (
+                        <div className="flex flex-col flex-1 bg-slate-50 overflow-y-auto animate-in fade-in duration-300 print-wrapper p-4 md:p-8" ref={whysRef}>
+                            <div className="max-w-4xl mx-auto w-full space-y-6">
+                                <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+                                    <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2"><Layers className="w-6 h-6 text-blue-600" /> 5 Whys Analysis</h2>
+                                    <div className="mb-4">
+                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Problem Statement</label>
+                                        <textarea rows="2" value={fiveWhys.problem} onChange={(e) => setFiveWhys({...fiveWhys, problem: e.target.value})} className="w-full bg-red-50 border border-red-200 text-red-900 rounded-lg p-4 font-semibold text-lg outline-none focus:ring-2 focus:ring-red-500" placeholder="Tulis masalah yang terjadi..." />
+                                    </div>
+                                </div>
+                                <div className="space-y-4 pl-4 relative before:absolute before:inset-0 before:ml-[31px] before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-1 before:bg-gradient-to-b before:from-transparent before:via-slate-300 before:to-transparent">
+                                    {fiveWhys.whys.map((why, idx) => (
+                                        <div key={idx} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+                                            <div className="flex items-center justify-center w-10 h-10 rounded-full border-4 border-white bg-blue-500 text-white font-bold shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10">{idx + 1}</div>
+                                            <div className="w-[calc(100%-4rem)] md:w-[calc(50%-3rem)] bg-white border border-slate-200 p-4 rounded-xl shadow-sm relative">
+                                                <div className="flex justify-between items-center mb-2"><h3 className="font-bold text-slate-700 text-sm">Why {idx + 1}?</h3><button onClick={() => removeWhy(idx)} className="text-slate-400 hover:text-red-500 no-print"><Trash2 className="w-4 h-4" /></button></div>
+                                                <textarea rows="2" value={why} onChange={(e) => updateWhy(idx, e.target.value)} className="w-full bg-transparent outline-none text-slate-600 resize-y" placeholder={`Alasan ke-${idx + 1}...`} />
+                                            </div>
+                                        </div>
+                                    ))}
+                                    <div className="relative flex justify-center z-10 no-print pt-4"><button onClick={addWhy} className="bg-white border border-slate-300 text-slate-600 hover:bg-slate-50 px-4 py-2 rounded-full font-medium shadow-sm flex items-center gap-2"><Plus className="w-4 h-4" /> Tambah Why</button></div>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-6">
+                                    <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-6 shadow-sm">
+                                        <label className="text-xs font-bold text-emerald-700 uppercase tracking-wider mb-2 block flex items-center gap-2"><Check className="w-4 h-4" /> Root Cause</label>
+                                        <textarea rows="4" value={fiveWhys.rootCause} onChange={(e) => setFiveWhys({...fiveWhys, rootCause: e.target.value})} className="w-full bg-transparent text-emerald-900 font-medium outline-none resize-none" placeholder="Kesimpulan akar masalah..." />
+                                    </div>
+                                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-6 shadow-sm">
+                                        <label className="text-xs font-bold text-blue-700 uppercase tracking-wider mb-2 block flex items-center gap-2"><FileText className="w-4 h-4" /> Action Plan</label>
+                                        <textarea rows="4" value={fiveWhys.actionPlan} onChange={(e) => setFiveWhys({...fiveWhys, actionPlan: e.target.value})} className="w-full bg-transparent text-blue-900 font-medium outline-none resize-none" placeholder="Tindakan perbaikan..." />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* =========================================
+                        TOOL 3: FAULT TREE ANALYSIS (FTA)
+                        ========================================= */}
+                    {activeTab === 'fta' && (
+                        <div className="flex flex-col flex-1 bg-slate-50 overflow-auto animate-in fade-in duration-300 p-8 print-wrapper" ref={ftaRef}>
+                            <div className="w-full min-w-max mx-auto bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
+                                <div className="mb-10 text-center">
+                                    <h2 className="text-2xl font-bold text-slate-800 flex items-center justify-center gap-2"><Network className="w-6 h-6 text-blue-600" /> Fault Tree Analysis</h2>
+                                    <p className="text-sm text-slate-500">Pohon Analisis Kegagalan Sistem. Arahkan mouse (hover) pada kotak untuk menambah/menghapus event.</p>
+                                </div>
+                                <div className="fta-tree flex justify-center w-full">
+                                    <ul>
+                                        {renderFTANode(ftaData, true)}
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* MODAL EDIT CEPAT DARI DIAGRAM (FISHBONE) */}
+                    {editingItem && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 no-print">
+                            <div className="bg-white border border-slate-200 w-full max-w-md rounded-2xl p-6 shadow-2xl space-y-4">
+                                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                                    <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2"><Edit2 className="w-4 h-4 text-blue-600" />Edit Penyebab</h3>
+                                    <button onClick={() => setEditingItem(null)} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"><X className="w-4 h-4" /></button>
+                                </div>
+                                <div className="space-y-3">
+                                    <div><label className="text-xs text-slate-500 font-semibold block mb-1">Akar Masalah Utama:</label><input type="text" id="quick-edit-cause" defaultValue={editingItem.text} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-500" /></div>
+                                    <div><label className="text-xs text-slate-500 font-semibold block mb-1">Sub-Cause (Anak Tulang):</label><textarea rows="3" id="quick-edit-subcause" defaultValue={editingItem.subCause} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-500" /></div>
+                                </div>
+                                <div className="flex justify-end space-x-2 pt-2">
+                                    <button onClick={() => setEditingItem(null)} className="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition">Batal</button>
+                                    <button onClick={() => { const cInput = document.getElementById('quick-edit-cause'); const sInput = document.getElementById('quick-edit-subcause'); if (cInput && sInput) saveQuickEdit(cInput.value, sInput.value); }} className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white transition flex items-center space-x-1"><Check className="w-3.5 h-3.5" /><span>Simpan</span></button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* MODAL AI (UNIVERSAL) */}
                     {showAIModal && (
                         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 no-print">
                             <div className="bg-white border border-slate-200 w-full max-w-lg rounded-2xl p-6 shadow-2xl space-y-5">
                                 <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                                    <h3 className="text-base font-bold text-slate-800 flex items-center gap-2"><Wand2 className="w-5 h-5 text-indigo-500" /> AI Deep RCA Generator (6M Penuh)</h3>
+                                    <h3 className="text-base font-bold text-slate-800 flex items-center gap-2"><Wand2 className="w-5 h-5 text-indigo-500" /> AI Generator ({activeTab.toUpperCase()})</h3>
                                     <button onClick={() => !isGenerating && setShowAIModal(false)} className="text-slate-400 hover:text-slate-700 bg-slate-100 p-1.5 rounded-lg"><X className="w-4 h-4" /></button>
                                 </div>
                                 <div className="space-y-4">
                                     <div>
                                         <label className="text-xs text-slate-500 block mb-1.5 font-bold">Model AI:</label>
-                                        <div className="relative">
-                                            <select value={aiModel} onChange={(e) => setAiModel(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-3 pr-8 py-2 text-sm text-slate-800 outline-none focus:border-indigo-500 appearance-none cursor-pointer">
-                                                <option value="gemini-3.1-flash-lite">3.1 Flash-Lite (Cepat & Ringan)</option>
-                                                <option value="gemini-1.5-flash">1.5 Flash (Standar)</option>
-                                                <option value="gemini-1.5-pro">1.5 Pro (Penalaran Kompleks)</option>
-                                            </select>
-                                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-400"><ChevronDown className="w-4 h-4" /></div>
-                                        </div>
+                                        <select value={aiModel} onChange={(e) => setAiModel(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 outline-none focus:border-indigo-500">
+                                            <option value="gemini-3.1-flash-lite">3.1 Flash-Lite (Cepat & Ringan)</option>
+                                            <option value="gemini-1.5-flash">1.5 Flash (Standar)</option>
+                                            <option value="gemini-1.5-pro">1.5 Pro (Penalaran Kompleks)</option>
+                                        </select>
                                     </div>
-                                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-800">
-                                        <p className="font-semibold mb-1">Target 6 Kategori Penuh (6M):</p>
-                                        <div className="flex flex-wrap gap-1">
-                                            {PRESETS['6M'].categories.map(c => (
-                                                <span key={c.id} className="bg-white border border-blue-200 px-2 py-0.5 rounded text-[11px] font-medium text-slate-700">
-                                                    {c.name}
-                                                </span>
-                                            ))}
-                                        </div>
-                                    </div>
+                                    <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-3 text-xs text-indigo-800 font-medium">AI akan menghasilkan data khusus untuk <b>{activeTab === 'fishbone' ? 'Fishbone Diagram (6M)' : activeTab === '5whys' ? '5 Whys Analysis' : 'Fault Tree Analysis'}</b>.</div>
                                     <div>
                                         <label className="text-xs text-slate-500 block mb-1.5 font-bold">Deskripsi Masalah / Laporan Insiden:</label>
-                                        <textarea rows="5" value={aiPrompt} onChange={(e) => setAiPrompt(e.target.value)} placeholder="Ketik atau tempel laporan insiden secara lengkap di sini. AI akan menghasilkan 6 kategori 6M lengkap dengan tulang Cause dan anak tulang Sub-Cause..." className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" />
+                                        <textarea rows="4" value={aiPrompt} onChange={(e) => setAiPrompt(e.target.value)} placeholder="Ketik atau tempel laporan insiden secara lengkap..." className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" />
                                     </div>
                                     {aiError && <div className="text-xs text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-lg font-medium">{aiError}</div>}
                                 </div>
                                 <div className="flex justify-end space-x-3 pt-2">
                                     <button onClick={() => setShowAIModal(false)} disabled={isGenerating} className="px-4 py-2 rounded-lg text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition disabled:opacity-50">Batal</button>
                                     <button onClick={handleAIGenerate} disabled={isGenerating || !aiPrompt.trim()} className="px-5 py-2 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white transition flex items-center space-x-2 disabled:opacity-50">
-                                        {isGenerating ? <><Loader2 className="w-4 h-4 animate-spin" /><span>Menganalisis 6M...</span></> : <><Bot className="w-4 h-4" /><span>Generate 6M Lengkap</span></>}
+                                        {isGenerating ? <><Loader2 className="w-4 h-4 animate-spin" /><span>Menganalisis...</span></> : <><Bot className="w-4 h-4" /><span>Generate Analisis</span></>}
                                     </button>
                                 </div>
                             </div>

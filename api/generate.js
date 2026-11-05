@@ -3,7 +3,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { prompt, model = 'gemini-3.1-flash-lite', expectedCategories = [] } = req.body;
+  const { prompt, model = 'gemini-3.1-flash-lite', tool = 'fishbone', expectedCategories = [] } = req.body;
   const apiKey = process.env.GEMINI_API_KEY;
 
   if (!apiKey) {
@@ -15,55 +15,75 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Pastikan jika 6M, wajib 6 kategori
-    const default6M = [
-      "Man (Tenaga Kerja)",
-      "Machine (Mesin)",
-      "Method (Metode)",
-      "Material (Bahan Baku)",
-      "Measurement (Pengukuran)",
-      "Milieu / Environment (Lingkungan)"
-    ];
+    let systemPrompt = '';
 
-    const targetCategories = (expectedCategories && expectedCategories.length >= 6)
-      ? expectedCategories
-      : (expectedCategories && expectedCategories.length > 0 ? expectedCategories : default6M);
+    // PROMPT UNTUK FISHBONE (6M)
+    if (tool === 'fishbone') {
+      const default6M = ["Man (Tenaga Kerja)", "Machine (Mesin)", "Method (Metode)", "Material (Bahan Baku)", "Measurement (Pengukuran)", "Milieu / Environment (Lingkungan)"];
+      const targetCategories = (expectedCategories && expectedCategories.length >= 6) ? expectedCategories : (expectedCategories && expectedCategories.length > 0 ? expectedCategories : default6M);
+      const catListStr = targetCategories.map(c => `"${c}"`).join(', ');
 
-    const catListStr = targetCategories.map(c => `"${c}"`).join(', ');
-
-    const systemPrompt = `You are a Senior Root Cause Analysis (RCA) & Six Sigma Black Belt Facilitator.
-Tugas Anda adalah membedah laporan insiden/masalah secara MENDALAM, KOMPREHENSIF, dan TEKNIKAL.
-
-MASALAH YANG DIANALISIS:
-"${prompt}"
-
-ATURAN KATEGORI & CABANG (WAJIB DIPATUHI):
-1. Anda WAJIB menghasilkan TEPAT ${targetCategories.length} KATEGORI berikut tanpa dikurangi: [${catListStr}].
-2. Untuk SETIAP kategori, berikan minimal 2 akar masalah (Cause).
-3. Setiap Cause WAJIB memiliki rincian Sub-Cause (anak cabang tulang) dan Action Plan konkret:
-   - "text": Judul akar masalah tingkat 1 yang padat dan jelas (maksimal 5-8 kata).
-   - "subCause": Penjelasan teknis akar masalah tingkat lanjutan/detail kronologi (1-2 kalimat).
-   - "actionPlan": Rekomendasi tindakan perbaikan terukur dan realistis.
-
-FORMAT KELUARAN:
-Kembalikan HANYA format JSON valid tanpa format markdown (tanpa backtick \`\`\`json).
-Format yang diharapkan:
+      systemPrompt = `Anda adalah Senior RCA Facilitator. Analisis masalah: "${prompt}".
+1. Hasilkan TEPAT ${targetCategories.length} KATEGORI ini: [${catListStr}].
+2. Setiap kategori minimal 2 Cause.
+3. Setiap Cause WAJIB memiliki "subCause" dan "actionPlan".
+Kembalikan JSON:
 {
-  "problem": "Judul masalah utama yang tegas",
-  "conclusion": "Kesimpulan analisis akar masalah secara eksekutif.",
-  "categories": [
+  "problem": "Masalah utama (singkat)",
+  "conclusion": "Kesimpulan eksekutif singkat",
+  "categories": [ { "name": "Nama Kategori", "causes": [ { "text": "Penyebab utama", "subCause": "Mekanisme detail kegagalan", "actionPlan": "Rencana perbaikan konkret" } ] } ]
+}`;
+    } 
+    
+    // PROMPT UNTUK 5 WHYS
+    else if (tool === '5whys') {
+      systemPrompt = `Anda adalah Senior RCA Facilitator. Analisis masalah ini dengan teknik 5 Whys: "${prompt}".
+Lakukan investigasi logis berurutan dari akibat hingga ke akar masalah sistemik.
+Kembalikan HANYA JSON:
+{
+  "problem": "Judul Masalah (Ringkas)",
+  "whys": [
+    "Why 1: [Alasan langsung terjadinya masalah]",
+    "Why 2: [Alasan mengapa Why 1 terjadi]",
+    "Why 3: [Alasan mengapa Why 2 terjadi]",
+    "Why 4: [Alasan mengapa Why 3 terjadi]",
+    "Why 5: [Akar masalah sistemik/proses]"
+  ],
+  "rootCause": "Kesimpulan akar masalah yang sebenarnya",
+  "actionPlan": "Rencana tindakan perbaikan dan pencegahan (CAPA) yang komprehensif"
+}`;
+    }
+
+    // PROMPT UNTUK FAULT TREE ANALYSIS (FTA)
+    else if (tool === 'fta') {
+      systemPrompt = `Anda adalah Ahli Fault Tree Analysis (FTA). Buat pohon kegagalan dari Top Event: "${prompt}".
+Struktur berbentuk pohon (tree). "gate" bisa "OR" atau "AND". "type" bisa "top", "intermediate", atau "basic".
+Event tingkat bawah (basic) harus merupakan penyebab dasar. Buat hierarki minimal 3 level.
+Kembalikan HANYA JSON:
+{
+  "id": "root",
+  "text": "Kegagalan Utama (Top Event)",
+  "type": "top",
+  "gate": "OR",
+  "children": [
     {
-      "name": "Nama Kategori Sesuai Daftar",
-      "causes": [
-        {
-          "text": "Akar Masalah Utama",
-          "subCause": "Detail akar masalah tingkat lanjutan",
-          "actionPlan": "Rencana tindakan perbaikan"
-        }
+      "id": "node-1",
+      "text": "Kegagalan Subsistem A",
+      "type": "intermediate",
+      "gate": "AND",
+      "children": [
+        { "id": "node-1-1", "text": "Komponen X Rusak", "type": "basic" },
+        { "id": "node-1-2", "text": "Sistem Backup Gagal", "type": "basic" }
       ]
+    },
+    {
+      "id": "node-2",
+      "text": "Human Error",
+      "type": "basic"
     }
   ]
 }`;
+    }
 
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
@@ -72,10 +92,7 @@ Format yang diharapkan:
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: systemPrompt }] }],
-          generationConfig: {
-            temperature: 0.6,
-            responseMimeType: 'application/json'
-          }
+          generationConfig: { temperature: 0.6, responseMimeType: 'application/json' }
         })
       }
     );
@@ -87,7 +104,6 @@ Format yang diharapkan:
 
     const data = await response.json();
     const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    
     return res.status(200).json({ result: rawText });
   } catch (error) {
     return res.status(500).json({ error: error.message || 'Internal Server Error' });
