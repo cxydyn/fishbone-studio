@@ -35,8 +35,30 @@
             ZoomIn, ZoomOut, RotateCcw, Plus, Download, Printer,
             Sparkles, Info, Layers, ChevronDown, Edit2, Check, X,
             HelpCircle, Eye, EyeOff, Bot, Wand2, Loader2, Trash2, FileText, Move,
-            Network, ListEnd, AlignEndHorizontal
+            Network, ListEnd, AlignEndHorizontal, Cloud, CloudOff, Users, Share2
         } from 'lucide-react';
+
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, getDocs, addDoc, updateDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Firebase Config Setup
+        const appId = 'rca-studio-app';
+        const firebaseConfig = {
+            apiKey: "AIzaSyBpyq-YpbHdyfYdxSsd6F48Ye-paFWv9z8",
+            authDomain: "rca-studio.firebaseapp.com",
+            projectId: "rca-studio",
+            storageBucket: "rca-studio.firebasestorage.app",
+            messagingSenderId: "658137241845",
+            appId: "1:658137241845:web:73472bc5bbb95df9b38dbc"
+        };
+        
+        let app, auth, db;
+        try {
+            app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
+        } catch(e) { console.warn("Firebase initialization skipped or failed.", e); }
 
         const PRESETS = {
             '6M': {
@@ -216,12 +238,188 @@
             const [isGenerating, setIsGenerating] = useState(false);
             const [aiError, setAiError] = useState('');
 
+            // --- FIREBASE CLOUD SYNC STATE ---
+            const [user, setUser] = useState(null);
+            const [activeDoc, setActiveDoc] = useState(null);
+            const [archives, setArchives] = useState([]);
+            const [showArchives, setShowArchives] = useState(false);
+            const [toastMsg, setToastMsg] = useState('');
+            const isRemoteUpdate = useRef(false);
+
             const containerRef = useRef(null);
             const svgRef = useRef(null);
             const whysRef = useRef(null);
             const ftaRef = useRef(null);
 
-            // Auto Save
+            // Inisialisasi Autentikasi Firebase
+            useEffect(() => {
+                if (!auth) return;
+                const initAuth = async () => {
+                    try {
+                        if (initialAuthToken) await signInWithCustomToken(auth, initialAuthToken);
+                        else await signInAnonymously(auth);
+                        setUser(auth.currentUser);
+                    } catch (e) { console.error("Auth error", e); }
+                };
+                initAuth();
+            }, []);
+
+            // Ambil Daftar Arsip dari Cloud Firestore
+            useEffect(() => {
+                if (!user || !db || !showArchives) return;
+                const fetchArchives = async () => {
+                    try {
+                        const collRef = collection(db, 'artifacts', appId, 'public', 'data', 'rca_archives');
+                        const snapshot = await getDocs(collRef);
+                        // Sortir di memori (terbaru di atas)
+                        const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a,b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+                        setArchives(items);
+                    } catch(e) { console.error("Error fetching archives", e); }
+                };
+                fetchArchives();
+            }, [user, showArchives]);
+
+            const showToast = (msg) => {
+                setToastMsg(msg);
+                setTimeout(() => setToastMsg(''), 3000);
+            };
+
+            // Listener Sinkronisasi Real-Time (Menerima Data)
+            useEffect(() => {
+                if (!user || !activeDoc || !db) return;
+                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'rca_archives', activeDoc.id);
+                const unsub = onSnapshot(docRef, (snap) => {
+                    if (snap.exists()) {
+                        const docData = snap.data();
+                        isRemoteUpdate.current = true; // Tandai agar tidak memicu loop pengiriman balik
+                        try {
+                            const parsed = JSON.parse(docData.payload);
+                            if (parsed.fishbone) setData(parsed.fishbone);
+                            if (parsed.fiveWhys) setFiveWhys(parsed.fiveWhys);
+                            if (parsed.ftaData) setFtaData(parsed.ftaData);
+                        } catch(e) { console.error("Parse error", e); }
+                    }
+                }, (err) => console.error(err));
+                return () => unsub();
+            }, [user, activeDoc]);
+
+            // Sync Otomatis Lokal ke Cloud (Mengirim Data)
+            useEffect(() => {
+                if (!user || !activeDoc || !db) return;
+                if (isRemoteUpdate.current) {
+                    isRemoteUpdate.current = false;
+                    return;
+                }
+                const save = async () => {
+                    const payload = JSON.stringify({ fishbone: data, fiveWhys, ftaData });
+                    try {
+                        const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'rca_archives', activeDoc.id);
+                        await updateDoc(docRef, { payload, updatedAt: new Date().toISOString() });
+                    } catch (e) { console.error("Sync error", e); }
+                };
+                // Debounce 400ms agar pengiriman cepat (real-time feel)
+                const timeoutId = setTimeout(save, 400);
+                return () => clearTimeout(timeoutId);
+            }, [data, fiveWhys, ftaData, activeDoc, user]);
+
+            // Cek URL untuk Auto-Join Session
+            useEffect(() => {
+                if (!user || !db) return;
+                const urlParams = new URLSearchParams(window.location.search);
+                const sessionId = urlParams.get('session');
+                if (sessionId && !activeDoc) {
+                    setActiveDoc({ id: sessionId });
+                    showToast('Berhasil bergabung ke sesi kolaborasi!');
+                }
+            }, [user]);
+
+            const handleShare = async () => {
+                if (!user || !db) return;
+                let currentDocId = activeDoc?.id;
+                
+                if (!currentDocId) {
+                    const payload = JSON.stringify({ fishbone: data, fiveWhys, ftaData });
+                    const name = data.name || 'Proyek RCA Kolaborasi';
+                    const problem = data.problem;
+
+                    try {
+                        const collRef = collection(db, 'artifacts', appId, 'public', 'data', 'rca_archives');
+                        const newDoc = await addDoc(collRef, {
+                            name, problem, payload,
+                            createdAt: new Date().toISOString(),
+                            updatedAt: new Date().toISOString(),
+                            createdBy: user.uid
+                        });
+                        currentDocId = newDoc.id;
+                        setActiveDoc({ id: newDoc.id });
+                    } catch(e) { console.error("Error creating archive", e); return; }
+                }
+                
+                const url = new URL(window.location.href);
+                url.searchParams.set('session', currentDocId);
+                window.history.replaceState(null, '', url.toString());
+                
+                try {
+                    const textArea = document.createElement("textarea");
+                    textArea.value = url.toString();
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    document.execCommand("copy");
+                    document.body.removeChild(textArea);
+                    showToast('Link kolaborasi disalin! Bagikan ke tim Anda.');
+                } catch(e) { console.error('Copy failed', e); }
+            };
+
+            const saveAsNewArchive = async () => {
+                if (!user || !db) return;
+                const payload = JSON.stringify({ fishbone: data, fiveWhys, ftaData });
+                const name = data.name || 'Proyek RCA Baru';
+                const problem = data.problem;
+
+                try {
+                    const collRef = collection(db, 'artifacts', appId, 'public', 'data', 'rca_archives');
+                    const newDoc = await addDoc(collRef, {
+                        name, problem, payload,
+                        createdAt: new Date().toISOString(),
+                        updatedAt: new Date().toISOString(),
+                        createdBy: user.uid
+                    });
+                    setActiveDoc({ id: newDoc.id });
+                    setShowArchives(false);
+                    showToast('Proyek baru berhasil disimpan di Cloud!');
+                } catch(e) { console.error("Error creating archive", e); }
+            };
+
+            const loadArchive = (item) => {
+                isRemoteUpdate.current = true;
+                try {
+                    const parsed = JSON.parse(item.payload);
+                    if (parsed.fishbone) setData(parsed.fishbone);
+                    if (parsed.fiveWhys) setFiveWhys(parsed.fiveWhys);
+                    if (parsed.ftaData) setFtaData(parsed.ftaData);
+                } catch(e) { console.error(e); }
+                setActiveDoc({ id: item.id });
+                setShowArchives(false);
+
+                const url = new URL(window.location.href);
+                url.searchParams.set('session', item.id);
+                window.history.replaceState(null, '', url.toString());
+                
+                showToast('Arsip berhasil dimuat!');
+            };
+
+            const deleteArchive = async (id, e) => {
+                e.stopPropagation();
+                if (!user || !db) return;
+                try {
+                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'rca_archives', id);
+                    await deleteDoc(docRef);
+                    setArchives(archives.filter(a => a.id !== id));
+                    if (activeDoc?.id === id) setActiveDoc(null);
+                } catch(e) { console.error("Error deleting archive", e); }
+            };
+
+            // Auto Save Fallback
             useEffect(() => { localStorage.setItem('rca_fishbone_data', JSON.stringify(data)); }, [data]);
             useEffect(() => { localStorage.setItem('rca_5whys_data', JSON.stringify(fiveWhys)); }, [fiveWhys]);
             useEffect(() => { localStorage.setItem('rca_fta_data', JSON.stringify(ftaData)); }, [ftaData]);
@@ -636,6 +834,7 @@
                             <div>
                                 <h1 className="text-lg font-bold tracking-tight text-slate-800 flex items-center gap-2">
                                     RCA Studio <span className="text-[10px] font-medium uppercase px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 border border-blue-200">Suite</span>
+                                    {activeDoc && <span className="flex items-center gap-1 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-green-100 text-green-700 border border-green-200 ml-1"><Users className="w-3 h-3" /> Live Sync</span>}
                                 </h1>
                             </div>
                         </div>
@@ -648,6 +847,12 @@
                         </div>
 
                         <div className="flex items-center space-x-2">
+                            <button onClick={handleShare} className="flex items-center space-x-1.5 px-3 py-1.5 text-sm font-medium bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 rounded-lg transition">
+                                <Share2 className="w-4 h-4" /><span className="hidden lg:inline">Bagikan (Live)</span>
+                            </button>
+                            <button onClick={() => setShowArchives(true)} className="flex items-center space-x-1.5 px-3 py-1.5 text-sm font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-lg transition">
+                                {activeDoc ? <Cloud className="w-4 h-4 text-blue-600" /> : <CloudOff className="w-4 h-4 text-slate-400" />}<span className="hidden sm:inline">Arsip Cloud</span>
+                            </button>
                             <button onClick={() => setShowAIModal(true)} className="flex items-center space-x-1.5 px-3 py-1.5 text-sm font-medium bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg transition">
                                 <Bot className="w-4 h-4" /><span className="hidden sm:inline">AI Generate</span>
                             </button>
@@ -966,6 +1171,59 @@
                                     <button onClick={handleAIGenerate} disabled={isGenerating || !aiPrompt.trim()} className="px-5 py-2 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white transition flex items-center space-x-2 disabled:opacity-50">
                                         {isGenerating ? <><Loader2 className="w-4 h-4 animate-spin" /><span>Menganalisis...</span></> : <><Bot className="w-4 h-4" /><span>Generate Analisis</span></>}
                                     </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* TOAST NOTIFICATION */}
+                    {toastMsg && (
+                        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] bg-slate-800 text-white px-5 py-3 rounded-full shadow-2xl font-semibold text-sm flex items-center gap-2">
+                            <Check className="w-4 h-4 text-green-400" /> {toastMsg}
+                        </div>
+                    )}
+
+                    {/* MODAL ARSIP CLOUD & COLLABORATION */}
+                    {showArchives && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 no-print">
+                            <div className="bg-white border border-slate-200 w-full max-w-2xl rounded-2xl p-6 shadow-2xl space-y-5 max-h-[85vh] flex flex-col">
+                                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                                    <h3 className="text-base font-bold text-slate-800 flex items-center gap-2"><Cloud className="w-5 h-5 text-blue-500" /> Arsip & Kolaborasi Cloud</h3>
+                                    <button onClick={() => setShowArchives(false)} className="text-slate-400 hover:text-slate-700 bg-slate-100 p-1.5 rounded-lg"><X className="w-4 h-4" /></button>
+                                </div>
+                                
+                                <div className="flex justify-between items-center bg-blue-50 p-4 rounded-xl border border-blue-100">
+                                    <div className="text-sm text-blue-800">
+                                        <span className="font-bold block text-base mb-0.5">Simpan Proyek RCA Terpadu</span>
+                                        <span className="text-xs">Buat arsip baru di cloud untuk mengaktifkan kolaborasi real-time dengan tim (Fishbone + 5Whys + FTA).</span>
+                                    </div>
+                                    <button onClick={saveAsNewArchive} className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition whitespace-nowrap shadow-sm flex items-center gap-2">
+                                        <Plus className="w-4 h-4" /> Simpan sbg Baru
+                                    </button>
+                                </div>
+
+                                <div className="overflow-y-auto flex-1 border border-slate-200 rounded-xl bg-slate-50 p-2 space-y-2">
+                                    {archives.length === 0 && (
+                                        <div className="text-center p-8 text-slate-500 text-sm font-medium">Belum ada arsip yang tersimpan di ruang kerja cloud.</div>
+                                    )}
+                                    {archives.map(arc => (
+                                        <div key={arc.id} className={`bg-white border p-4 rounded-xl flex items-center justify-between shadow-sm cursor-pointer transition ${activeDoc?.id === arc.id ? 'border-green-500 ring-1 ring-green-500' : 'border-slate-200 hover:border-blue-400'}`} onClick={() => loadArchive(arc)}>
+                                            <div>
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">RCA SUITE</span>
+                                                    <span className="text-sm font-bold text-slate-800">{arc.name}</span>
+                                                    {activeDoc?.id === arc.id && <span className="text-[10px] font-bold text-green-700 flex items-center gap-1 bg-green-100 px-1.5 py-0.5 rounded"><Users className="w-3 h-3"/> Sedang Aktif (Live)</span>}
+                                                </div>
+                                                <div className="text-xs text-slate-500 truncate max-w-md">{arc.problem}</div>
+                                            </div>
+                                            <div className="flex items-center gap-4">
+                                                <div className="text-[10px] text-slate-400 text-right font-medium">
+                                                    {new Date(arc.updatedAt).toLocaleDateString('id-ID', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'})}
+                                                </div>
+                                                <button onClick={(e) => deleteArchive(arc.id, e)} className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"><Trash2 className="w-4 h-4" /></button>
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
                         </div>
