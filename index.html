@@ -39,7 +39,7 @@
         } from 'lucide-react';
 
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, doc, getDocs, addDoc, updateDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Firebase Config Setup
@@ -251,17 +251,24 @@
             const whysRef = useRef(null);
             const ftaRef = useRef(null);
 
-            // Inisialisasi Autentikasi Firebase
+            // Inisialisasi Autentikasi Firebase (Diperbaiki)
             useEffect(() => {
                 if (!auth) return;
-                const initAuth = async () => {
-                    try {
-                        if (initialAuthToken) await signInWithCustomToken(auth, initialAuthToken);
-                        else await signInAnonymously(auth);
-                        setUser(auth.currentUser);
-                    } catch (e) { console.error("Auth error", e); }
-                };
-                initAuth();
+                
+                // onAuthStateChanged akan mendeteksi status login pengguna secara otomatis
+                const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+                    if (currentUser) {
+                        setUser(currentUser);
+                    } else {
+                        // Jika belum login, login sebagai anonim
+                        signInAnonymously(auth).catch(e => {
+                            console.error("Gagal login anonim:", e);
+                            showToast("Gagal terhubung ke Cloud. Cek koneksi Anda.");
+                        });
+                    }
+                });
+
+                return () => unsubscribe();
             }, []);
 
             // Ambil Daftar Arsip dari Cloud Firestore
@@ -271,7 +278,6 @@
                     try {
                         const collRef = collection(db, 'artifacts', appId, 'public', 'data', 'rca_archives');
                         const snapshot = await getDocs(collRef);
-                        // Sortir di memori (terbaru di atas)
                         const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a,b) => new Date(b.updatedAt) - new Date(a.updatedAt));
                         setArchives(items);
                     } catch(e) { console.error("Error fetching archives", e); }
@@ -334,7 +340,11 @@
             }, [user]);
 
             const handleShare = async () => {
-                if (!user || !db) return;
+                if (!user || !db) {
+                    showToast("Sistem sedang menghubungkan ke Cloud... Coba lagi sebentar.");
+                    return;
+                }
+                
                 let currentDocId = activeDoc?.id;
                 
                 if (!currentDocId) {
@@ -352,7 +362,11 @@
                         });
                         currentDocId = newDoc.id;
                         setActiveDoc({ id: newDoc.id });
-                    } catch(e) { console.error("Error creating archive", e); return; }
+                    } catch(e) { 
+                        console.error("Error creating archive", e);
+                        showToast("Gagal membuat sesi live. Cek aturan Firestore Anda.");
+                        return; 
+                    }
                 }
                 
                 const url = new URL(window.location.href);
@@ -371,7 +385,11 @@
             };
 
             const saveAsNewArchive = async () => {
-                if (!user || !db) return;
+                if (!user || !db) {
+                    showToast("Belum terhubung ke Cloud Firebase.");
+                    return;
+                }
+                
                 const payload = JSON.stringify({ fishbone: data, fiveWhys, ftaData });
                 const name = data.name || 'Proyek RCA Baru';
                 const problem = data.problem;
@@ -387,7 +405,15 @@
                     setActiveDoc({ id: newDoc.id });
                     setShowArchives(false);
                     showToast('Proyek baru berhasil disimpan di Cloud!');
-                } catch(e) { console.error("Error creating archive", e); }
+                    
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('session', newDoc.id);
+                    window.history.replaceState(null, '', url.toString());
+
+                } catch(e) { 
+                    console.error("Error creating archive", e); 
+                    showToast("Gagal menyimpan. Cek aturan keamanan (Rules) Firestore Anda.");
+                }
             };
 
             const loadArchive = (item) => {
@@ -415,7 +441,13 @@
                     const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'rca_archives', id);
                     await deleteDoc(docRef);
                     setArchives(archives.filter(a => a.id !== id));
-                    if (activeDoc?.id === id) setActiveDoc(null);
+                    if (activeDoc?.id === id) {
+                        setActiveDoc(null);
+                        const url = new URL(window.location.href);
+                        url.searchParams.delete('session');
+                        window.history.replaceState(null, '', url.toString());
+                    }
+                    showToast("Arsip dihapus.");
                 } catch(e) { console.error("Error deleting archive", e); }
             };
 
