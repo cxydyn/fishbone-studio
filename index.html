@@ -40,7 +40,7 @@
             Sparkles, Info, Layers, ChevronDown, Edit2, Check, X,
             HelpCircle, Eye, EyeOff, Bot, Wand2, Loader2, Trash2, FileText, Move,
             Network, ListEnd, AlignEndHorizontal, Cloud, CloudOff, Users, Share2, Globe, LogOut, CheckCircle2, XCircle,
-            FileSpreadsheet, FileDown, Image as ImageIcon
+            FileSpreadsheet, FileDown, Image as ImageIcon, Search
         } from 'lucide-react';
 
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -157,6 +157,7 @@
             const [ftaData, setFtaData] = useState({ id: 'root', type: 'top', text: 'Top Event', gate: 'OR', validity: 'pending', children: [] });
 
             const [zoom, setZoom] = useState(1);
+            const [isMagnifierActive, setIsMagnifierActive] = useState(false);
             const [pan, setPan] = useState({ x: 0, y: 0 });
             const [isPanning, setIsPanning] = useState(false);
             const [startPan, setStartPan] = useState({ x: 0, y: 0 });
@@ -416,7 +417,7 @@
             const handlePointerMove = (e) => {
                 if (dragItem) {
                     const dx = (e.clientX - dragItem.startX) / zoom; const dy = (e.clientY - dragItem.startY) / zoom;
-                    if (dragItem.type === 'resize') { setTempOffsets({ [dragItem.id]: { dw: dx } }); } else { setTempOffsets({ [dragItem.id]: { dx, dy } }); }
+                    if (dragItem.type === 'resize') { setTempOffsets({ [dragItem.id]: { dw: dx, dh: dragItem.startHeight != null ? dy : 0 } }); } else { setTempOffsets({ [dragItem.id]: { dx, dy } }); }
                     
                     if (svgRef.current) {
                         const pt = svgRef.current.createSVGPoint();
@@ -432,37 +433,45 @@
                 setIsPanning(false);
                 if (dragItem) {
                     const offsets = tempOffsets[dragItem.id] || {};
-                    setData((prev) => {
-                        const next = { ...prev };
-                        if (dragItem.type === 'problem') {
-                            next.problemOffsetX = (next.problemOffsetX || 0) + (offsets.dx || 0); next.problemOffsetY = (next.problemOffsetY || 0) + (offsets.dy || 0);
-                        } else {
-                            next.categories = next.categories.map((c) => {
-                                if (c.id === dragItem.catId || c.id === dragItem.id) {
-                                    const nextCat = { ...c };
-                                    if (dragItem.type === 'cat' && dragItem.id === c.id) { nextCat.offsetX = (nextCat.offsetX || 0) + (offsets.dx || 0); nextCat.offsetY = (nextCat.offsetY || 0) + (offsets.dy || 0); }
-                                    if (dragItem.type === 'cat_bone' && dragItem.catId === c.id) { nextCat.boneOffsetX = (nextCat.boneOffsetX || 0) + (offsets.dx || 0); nextCat.boneOffsetY = (nextCat.boneOffsetY || 0) + (offsets.dy || 0); }
-                                    if (dragItem.catId === c.id) {
-                                        nextCat.causes = nextCat.causes.map(cause => {
-                                            const isMatchingCause = (dragItem.type === 'cause' && dragItem.id === cause.id) || (dragItem.type === 'cause_joint' && dragItem.id === `joint-${cause.id}`) || (dragItem.type === 'subcause' && dragItem.id === `sub-${cause.id}`) || (dragItem.type === 'resize' && dragItem.id === `resize-${cause.id}`);
-                                            if (isMatchingCause) {
-                                                const updatedCause = { ...cause };
-                                                if (dragItem.type === 'cause') { updatedCause.offsetX = (cause.offsetX || 0) + (offsets.dx || 0); updatedCause.offsetY = (cause.offsetY || 0) + (offsets.dy || 0); }
-                                                else if (dragItem.type === 'cause_joint') { updatedCause.jointOffsetRatio = (cause.jointOffsetRatio || 0) + (offsets.dy || 0) / 180; }
-                                                else if (dragItem.type === 'subcause') { updatedCause.subOffsetX = (cause.subOffsetX || 0) + (offsets.dx || 0); updatedCause.subOffsetY = (cause.subOffsetY || 0) + (offsets.dy || 0); }
-                                                else if (dragItem.type === 'resize') { updatedCause.customWidth = Math.max(100, (cause.customWidth || dragItem.startWidth) + (offsets.dw || 0)); }
-                                                return updatedCause;
-                                            }
-                                            return cause;
-                                        });
+                    
+                    if (dragItem.type === 'fta_node') {
+                        setFtaData(prev => updateFTANode(prev, dragItem.id, 'offset', { dx: offsets.dx||0, dy: offsets.dy||0 }));
+                    } else if (dragItem.type === 'resize' && dragItem.isFta) {
+                        const realId = dragItem.id.replace('resize-', '');
+                        setFtaData(prev => updateFTANode(prev, realId, 'resize', { dw: offsets.dw||0, dh: offsets.dh||0 }));
+                    } else {
+                        setData((prev) => {
+                            const next = { ...prev };
+                            if (dragItem.type === 'problem') {
+                                next.problemOffsetX = (next.problemOffsetX || 0) + (offsets.dx || 0); next.problemOffsetY = (next.problemOffsetY || 0) + (offsets.dy || 0);
+                            } else {
+                                next.categories = next.categories.map((c) => {
+                                    if (c.id === dragItem.catId || c.id === dragItem.id) {
+                                        const nextCat = { ...c };
+                                        if (dragItem.type === 'cat' && dragItem.id === c.id) { nextCat.offsetX = (nextCat.offsetX || 0) + (offsets.dx || 0); nextCat.offsetY = (nextCat.offsetY || 0) + (offsets.dy || 0); }
+                                        if (dragItem.type === 'cat_bone' && dragItem.catId === c.id) { nextCat.boneOffsetX = (nextCat.boneOffsetX || 0) + (offsets.dx || 0); nextCat.boneOffsetY = (nextCat.boneOffsetY || 0) + (offsets.dy || 0); }
+                                        if (dragItem.catId === c.id) {
+                                            nextCat.causes = nextCat.causes.map(cause => {
+                                                const isMatchingCause = (dragItem.type === 'cause' && dragItem.id === cause.id) || (dragItem.type === 'cause_joint' && dragItem.id === `joint-${cause.id}`) || (dragItem.type === 'subcause' && dragItem.id === `sub-${cause.id}`) || (dragItem.type === 'resize' && dragItem.id === `resize-${cause.id}`);
+                                                if (isMatchingCause) {
+                                                    const updatedCause = { ...cause };
+                                                    if (dragItem.type === 'cause') { updatedCause.offsetX = (cause.offsetX || 0) + (offsets.dx || 0); updatedCause.offsetY = (cause.offsetY || 0) + (offsets.dy || 0); }
+                                                    else if (dragItem.type === 'cause_joint') { updatedCause.jointOffsetRatio = (cause.jointOffsetRatio || 0) + (offsets.dy || 0) / 180; }
+                                                    else if (dragItem.type === 'subcause') { updatedCause.subOffsetX = (cause.subOffsetX || 0) + (offsets.dx || 0); updatedCause.subOffsetY = (cause.subOffsetY || 0) + (offsets.dy || 0); }
+                                                    else if (dragItem.type === 'resize') { updatedCause.customWidth = Math.max(100, (cause.customWidth || dragItem.startWidth) + (offsets.dw || 0)); }
+                                                    return updatedCause;
+                                                }
+                                                return cause;
+                                            });
+                                        }
+                                        return nextCat;
                                     }
-                                    return nextCat;
-                                }
-                                return c;
-                            });
-                        }
-                        return next;
-                    });
+                                    return c;
+                                });
+                            }
+                            return next;
+                        });
+                    }
                     setDragItem(null); setTempOffsets({});
                 }
             };
@@ -478,9 +487,9 @@
                     setSvgCursor({ x: svgP.x, y: svgP.y, screenX: e.clientX, screenY: e.clientY });
                 }
             };
-            const startResize = (e, id, catId, currentWidth) => { 
+            const startResize = (e, id, catId, currentWidth, currentHeight = null, isFta = false) => { 
                 e.stopPropagation(); 
-                setDragItem({ type: 'resize', id: `resize-${id}`, catId, startX: e.clientX, startWidth: currentWidth }); 
+                setDragItem({ type: 'resize', id: `resize-${id}`, catId, startX: e.clientX, startY: e.clientY, startWidth: currentWidth, startHeight: currentHeight, isFta }); 
                 
                 if (svgRef.current) {
                     const pt = svgRef.current.createSVGPoint();
@@ -508,63 +517,20 @@
             const addWhy = () => setFiveWhys({...fiveWhys, whys: [...fiveWhys.whys, ""]});
             const removeWhy = (idx) => { const newWhys = [...fiveWhys.whys]; newWhys.splice(idx, 1); setFiveWhys({...fiveWhys, whys: newWhys}); };
             
-            const updateFTANode = (node, id, field, value) => { if (node.id === id) { return { ...node, [field]: value }; } if (node.children) { return { ...node, children: node.children.map(c => updateFTANode(c, id, field, value)) }; } return node; };
+            const updateFTANode = (node, id, field, value) => { 
+                if (node.id === id) { 
+                    if (field === 'offset') return { ...node, offsetX: (node.offsetX || 0) + value.dx, offsetY: (node.offsetY || 0) + value.dy };
+                    if (field === 'resize') return { ...node, customWidth: Math.max(120, (node.customWidth || 160) + value.dw), customHeight: Math.max(60, (node.customHeight || 100) + value.dh) };
+                    return { ...node, [field]: value }; 
+                } 
+                if (node.children) return { ...node, children: node.children.map(c => updateFTANode(c, id, field, value)) }; 
+                return node; 
+            };
             const addChildFTANode = (node, id, type) => { if (node.id === id) { const newChild = { id: `n-${Date.now()}`, type, text: type === 'basic' ? 'Basic Event' : 'Intermediate Event', gate: type === 'intermediate' ? 'OR' : undefined, validity: 'pending', children: type === 'intermediate' ? [] : undefined }; return { ...node, children: [...(node.children || []), newChild] }; } if (node.children) { return { ...node, children: node.children.map(c => addChildFTANode(c, id, type)) }; } return node; };
             const removeFTANode = (node, id) => { if (node.children) { const filtered = node.children.filter(c => c.id !== id); return { ...node, children: filtered.map(c => removeFTANode(c, id)) }; } return node; };
             const handleFTAUpdate = (id, field, value) => setFtaData(updateFTANode(ftaData, id, field, value));
             const handleFTAAddChild = (id, type) => setFtaData(addChildFTANode(ftaData, id, type));
             const handleFTARemove = (id) => setFtaData(removeFTANode(ftaData, id));
-
-            const renderFTANode = (node, isRoot = false) => {
-                const textLen = node.text ? node.text.length : 0; const lineBreaks = node.text ? (node.text.match(/\n/g) || []).length : 0; const calcRows = Math.max(2, lineBreaks + 1, Math.ceil(textLen / 18));
-                let boxClass = node.type === 'basic' ? 'w-40 min-h-[9rem] rounded-[3rem] border-red-500 bg-red-50' : 'w-40 md:w-48 min-h-[6rem] rounded-lg border-blue-600 bg-white';
-                let textClass = 'text-slate-800';
-                if (node.validity === 'valid') { boxClass = node.type === 'basic' ? 'w-40 min-h-[9rem] rounded-[3rem] border-green-500 bg-green-50' : 'w-40 md:w-48 min-h-[6rem] rounded-lg border-green-500 bg-green-50'; textClass = 'text-green-900'; } 
-                else if (node.validity === 'invalid') { boxClass = node.type === 'basic' ? 'w-40 min-h-[9rem] rounded-[3rem] border-slate-300 bg-slate-100 opacity-60' : 'w-40 md:w-48 min-h-[6rem] rounded-lg border-slate-300 bg-slate-100 opacity-60'; textClass = 'text-slate-500 line-through'; }
-
-                return (
-                    <li key={node.id} className="avoid-break">
-                        <div className="flex flex-col items-center">
-                            <div className="relative group">
-                                <div className={`text-center p-3 border-2 shadow-sm relative z-10 transition-colors flex flex-col justify-center items-center ${boxClass}`}>
-                                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{node.type}</div>
-                                    <textarea value={node.text} onChange={(e) => handleFTAUpdate(node.id, 'text', e.target.value)} rows={calcRows} className={`w-full bg-transparent text-sm font-semibold text-center outline-none resize-none overflow-hidden ${textClass}`} placeholder="Tulis event..." />
-                                    {node.validity === 'valid' && <CheckCircle2 className="w-5 h-5 text-green-500 absolute -top-2 -right-2 bg-white rounded-full" />}
-                                    {node.validity === 'invalid' && <XCircle className="w-5 h-5 text-slate-400 absolute -top-2 -right-2 bg-white rounded-full" />}
-                                    
-                                    <div className="absolute top-0 right-0 translate-x-full opacity-0 group-hover:opacity-100 transition-opacity bg-white border border-slate-200 shadow-xl rounded-lg p-1.5 ml-2 flex flex-col gap-1 z-50 w-36 no-print">
-                                        <div className="flex gap-1 mb-1 border-b border-slate-100 pb-1.5">
-                                            <button onClick={() => handleFTAUpdate(node.id, 'validity', 'valid')} className="flex-1 py-1 text-center bg-green-50 text-green-600 rounded hover:bg-green-100">✅</button>
-                                            <button onClick={() => handleFTAUpdate(node.id, 'validity', 'invalid')} className="flex-1 py-1 text-center bg-red-50 text-red-600 rounded hover:bg-red-100">❌</button>
-                                            <button onClick={() => handleFTAUpdate(node.id, 'validity', 'pending')} className="flex-1 py-1 text-center bg-slate-50 text-slate-600 rounded hover:bg-slate-100">↻</button>
-                                        </div>
-                                        {node.type !== 'basic' && (
-                                            <>
-                                                <button onClick={() => handleFTAAddChild(node.id, 'intermediate')} className="text-[10px] text-left font-semibold text-blue-700 hover:bg-blue-50 px-2 py-1.5 rounded">+ Intermediate</button>
-                                                <button onClick={() => handleFTAAddChild(node.id, 'basic')} className="text-[10px] text-left font-semibold text-red-700 hover:bg-red-50 px-2 py-1.5 rounded">+ Basic Event</button>
-                                            </>
-                                        )}
-                                        {!isRoot && <button onClick={() => handleFTARemove(node.id)} className="text-[10px] text-left font-semibold text-slate-600 hover:bg-slate-100 px-2 py-1.5 rounded mt-1 border-t border-slate-100 pt-1.5">Hapus Event</button>}
-                                    </div>
-                                </div>
-                            </div>
-                            {node.type !== 'basic' && node.children && node.children.length > 0 && (
-                                <div className="flex flex-col items-center">
-                                    <div className="w-[2px] h-5 bg-slate-400"></div>
-                                    <div className="relative z-10 cursor-pointer group/gate hover:scale-110 transition-transform no-print" onClick={() => handleFTAUpdate(node.id, 'gate', node.gate === 'AND' ? 'OR' : 'AND')}>
-                                        {node.gate === 'AND' ? (
-                                            <svg width="44" height="34" viewBox="0 0 44 34"><path d="M 4 32 L 4 16 A 18 14 0 0 1 40 16 L 40 32 Z" fill="#1e293b" stroke="#1e293b" strokeWidth="2"/><text x="22" y="24" textAnchor="middle" fontSize="10" fontWeight="bold" fill="#ffffff">AND</text></svg>
-                                        ) : (
-                                            <svg width="44" height="34" viewBox="0 0 44 34"><path d="M 4 32 Q 22 22 40 32 Q 40 10 22 4 Q 4 10 4 32 Z" fill="#ffffff" stroke="#1e293b" strokeWidth="2"/><text x="22" y="24" textAnchor="middle" fontSize="10" fontWeight="bold" fill="#1e293b">OR</text></svg>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                        {node.type !== 'basic' && node.children && node.children.length > 0 && (<ul>{node.children.map(child => renderFTANode(child))}</ul>)}
-                    </li>
-                );
-            };
 
             const handleAIGenerate = async () => {
                 let activePrompt = aiPrompt.trim() ? aiPrompt : data.problem;
@@ -749,6 +715,93 @@
                 </>
             );
 
+            // FTA KONTEN (SVG LAYOUT)
+            const ftaContent = (() => {
+                if (activeTab !== 'fta') return null;
+                const layoutFta = JSON.parse(JSON.stringify(ftaData)); 
+                const calcW = (n) => { n.treeWidth = (n.customWidth || 160) + 40; if (n.children && n.children.length > 0) { const w = n.children.reduce((acc, c) => acc + calcW(c), 0); n.treeWidth = Math.max(n.treeWidth, w); } return n.treeWidth; };
+                calcW(layoutFta);
+                const calcP = (n, x, y) => { n.baseX = x; n.baseY = y; if (n.children && n.children.length > 0) { let startX = x - n.treeWidth / 2; n.children.forEach(c => { const cW = c.treeWidth; calcP(c, startX + cW / 2, y + (n.customHeight || 100)/2 + (c.customHeight || 100)/2 + 80); startX += cW; }); } };
+                calcP(layoutFta, SVG_WIDTH / 2, 100);
+
+                const renderNodeSVG = (node) => {
+                    const dx = tempOffsets[node.id]?.dx || 0; const dy = tempOffsets[node.id]?.dy || 0;
+                    const dw = tempOffsets[`resize-${node.id}`]?.dw || 0; const dh = tempOffsets[`resize-${node.id}`]?.dh || 0;
+                    const width = Math.max(120, (node.customWidth || 160) + dw); const height = Math.max(60, (node.customHeight || 100) + dh);
+                    const actX = node.baseX + (node.offsetX || 0) + dx; const actY = node.baseY + (node.offsetY || 0) + dy;
+                    
+                    const childrenNodes = []; const edges = []; const gateElements = [];
+                    
+                    if (node.children && node.children.length > 0) {
+                        const gateY = actY + height / 2 + 25;
+                        edges.push(<line key={`e2g-${node.id}`} x1={actX} y1={actY + height / 2} x2={actX} y2={gateY - 15} stroke="#94a3b8" strokeWidth="2" />);
+                        gateElements.push(
+                            <g key={`gate-${node.id}`} transform={`translate(${actX - 22}, ${gateY - 17})`} className="cursor-pointer group/gate hover:scale-110 transition-transform no-print" onPointerDown={e => { e.stopPropagation(); handleFTAUpdate(node.id, 'gate', node.gate === 'AND' ? 'OR' : 'AND'); }}>
+                                {node.gate === 'AND' ? (
+                                    <svg width="44" height="34" viewBox="0 0 44 34"><path d="M 4 32 L 4 16 A 18 14 0 0 1 40 16 L 40 32 Z" fill="#1e293b" stroke="#1e293b" strokeWidth="2"/><text x="22" y="24" textAnchor="middle" fontSize="10" fontWeight="bold" fill="#ffffff">AND</text></svg>
+                                ) : (
+                                    <svg width="44" height="34" viewBox="0 0 44 34"><path d="M 4 32 Q 22 22 40 32 Q 40 10 22 4 Q 4 10 4 32 Z" fill="#ffffff" stroke="#1e293b" strokeWidth="2"/><text x="22" y="24" textAnchor="middle" fontSize="10" fontWeight="bold" fill="#1e293b">OR</text></svg>
+                                )}
+                            </g>
+                        );
+                        node.children.forEach(c => {
+                            const cDx = tempOffsets[c.id]?.dx || 0; const cDy = tempOffsets[c.id]?.dy || 0;
+                            const cActX = c.baseX + (c.offsetX || 0) + cDx; const cActY = c.baseY + (c.offsetY || 0) + cDy;
+                            const cHeight = Math.max(60, (c.customHeight || 100)); 
+                            edges.push(<path key={`edge-${node.id}-${c.id}`} d={`M ${actX} ${gateY + 17} V ${gateY + 35} H ${cActX} V ${cActY - cHeight / 2}`} fill="none" stroke="#94a3b8" strokeWidth="2" />);
+                            const childRenders = renderNodeSVG(c);
+                            childrenNodes.push(...childRenders.nodes); edges.push(...childRenders.edges); gateElements.push(...childRenders.gateElements);
+                        });
+                    }
+                    
+                    let boxClass = node.type === 'basic' ? 'rounded-[3rem] border-red-500 bg-red-50' : 'rounded-lg border-blue-600 bg-white';
+                    let textClass = 'text-slate-800';
+                    if (node.validity === 'valid') { boxClass = node.type === 'basic' ? 'rounded-[3rem] border-green-500 bg-green-50' : 'rounded-lg border-green-500 bg-green-50'; textClass = 'text-green-900'; } 
+                    else if (node.validity === 'invalid') { boxClass = node.type === 'basic' ? 'rounded-[3rem] border-slate-300 bg-slate-100 opacity-60' : 'rounded-lg border-slate-300 bg-slate-100 opacity-60'; textClass = 'text-slate-500 line-through'; }
+
+                    const nodeObj = (
+                        <g key={node.id} className="fta-node-group">
+                            <rect x={actX - width/2} y={actY - height/2} width={width} height={height} fill="transparent" className="cursor-grab active:cursor-grabbing" onPointerDown={e => startDrag(e, 'fta_node', node.id)} />
+                            <foreignObject x={actX - width/2} y={actY - height/2} width={width} height={height} className="pointer-events-none overflow-visible">
+                                <div className={`w-full h-full flex flex-col items-center justify-center p-2 border-2 shadow-sm relative group pointer-events-auto ${boxClass}`}>
+                                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 pointer-events-none">{node.type}</div>
+                                    <textarea value={node.text} onPointerDown={e => e.stopPropagation()} onChange={(e) => handleFTAUpdate(node.id, 'text', e.target.value)} className={`w-full h-full bg-transparent text-sm font-semibold text-center outline-none resize-none overflow-hidden ${textClass}`} placeholder="Tulis event..." />
+                                    {node.validity === 'valid' && <CheckCircle2 className="w-5 h-5 text-green-500 absolute -top-2 -right-2 bg-white rounded-full pointer-events-none" />}
+                                    {node.validity === 'invalid' && <XCircle className="w-5 h-5 text-slate-400 absolute -top-2 -right-2 bg-white rounded-full pointer-events-none" />}
+                                    <div className="absolute top-0 right-0 translate-x-full opacity-0 group-hover:opacity-100 transition-opacity bg-white border border-slate-200 shadow-xl rounded-lg p-1.5 ml-2 flex flex-col gap-1 z-50 w-36 no-print" onPointerDown={e=>e.stopPropagation()}>
+                                        <div className="flex gap-1 mb-1 border-b border-slate-100 pb-1.5">
+                                            <button onClick={() => handleFTAUpdate(node.id, 'validity', 'valid')} className="flex-1 py-1 text-center bg-green-50 text-green-600 rounded hover:bg-green-100">✅</button>
+                                            <button onClick={() => handleFTAUpdate(node.id, 'validity', 'invalid')} className="flex-1 py-1 text-center bg-red-50 text-red-600 rounded hover:bg-red-100">❌</button>
+                                            <button onClick={() => handleFTAUpdate(node.id, 'validity', 'pending')} className="flex-1 py-1 text-center bg-slate-50 text-slate-600 rounded hover:bg-slate-100">↻</button>
+                                        </div>
+                                        {node.type !== 'basic' && (
+                                            <>
+                                                <button onClick={() => handleFTAAddChild(node.id, 'intermediate')} className="text-[10px] text-left font-semibold text-blue-700 hover:bg-blue-50 px-2 py-1.5 rounded">+ Intermediate</button>
+                                                <button onClick={() => handleFTAAddChild(node.id, 'basic')} className="text-[10px] text-left font-semibold text-red-700 hover:bg-red-50 px-2 py-1.5 rounded">+ Basic Event</button>
+                                            </>
+                                        )}
+                                        {node.id !== 'root' && <button onClick={() => handleFTARemove(node.id)} className="text-[10px] text-left font-semibold text-slate-600 hover:bg-slate-100 px-2 py-1.5 rounded mt-1 border-t border-slate-100 pt-1.5">Hapus Event</button>}
+                                    </div>
+                                </div>
+                            </foreignObject>
+                            <rect x={actX + width/2 - 12} y={actY + height/2 - 12} width="12" height="12" fill="transparent" className="cursor-nwse-resize no-print hover:bg-black/10" onPointerDown={e => startResize(e, node.id, null, width, height, true)} />
+                            <path d={`M ${actX+width/2-8} ${actY+height/2} L ${actX+width/2} ${actY+height/2} L ${actX+width/2} ${actY+height/2-8} Z`} fill="#cbd5e1" className="no-print pointer-events-none" />
+                        </g>
+                    );
+                    return { nodes: [nodeObj, ...childrenNodes], edges, gateElements };
+                };
+
+                const rendered = renderNodeSVG(layoutFta);
+                return (
+                    <>
+                        <rect x="16" y="16" width={SVG_WIDTH - 32} height={SVG_HEIGHT - 32} rx="20" fill="#ffffff" stroke="#e2e8f0" strokeWidth="2" className="canvas-outer-bg" />
+                        {rendered.edges}
+                        {rendered.gateElements}
+                        {rendered.nodes}
+                    </>
+                );
+            })();
+
             // LOBBY RENDER
             if (!inRoom) {
                 return (
@@ -892,28 +945,26 @@
                     </div>
 
                     <div ref={mainContentRef} className="flex flex-col flex-1 h-full w-full relative">
-                        {/* FISHBONE TAB */}
-                        {activeTab === 'fishbone' && (
+                        {/* FISHBONE & FTA TABS (BERBAGI CONTAINER SVG) */}
+                        {(activeTab === 'fishbone' || activeTab === 'fta') && (
                             <div className="flex flex-col flex-1 animate-in fade-in duration-300">
-                                <div ref={containerRef} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onWheel={handleWheel} className={`relative w-full h-[62vh] shrink-0 bg-slate-50 overflow-hidden flex items-center justify-center border-b border-slate-200 shadow-inner touch-none cursor-${isPanning ? 'grabbing' : 'grab'} print-wrapper`}>
+                                <div ref={containerRef} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onWheel={handleWheel} className={`relative w-full ${activeTab === 'fishbone' ? 'h-[62vh]' : 'h-full'} shrink-0 bg-slate-50 overflow-hidden flex items-center justify-center border-b border-slate-200 shadow-inner touch-none cursor-${isPanning ? 'grabbing' : 'grab'} print-wrapper`}>
                                     <div id="canvas-bg" className="absolute inset-0 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:24px_24px] opacity-60 pointer-events-none" />
                                     
-                                    {/* MAGNIFIER LENS (KACA PEMBESAR KHUSUS MOBILE) */}
-                                    {dragItem && svgCursor.screenX > 0 && (
+                                    {/* MAGNIFIER LENS (TOGGLE) */}
+                                    {isMagnifierActive && dragItem && svgCursor.screenX > 0 && (
                                         <div className="fixed pointer-events-none z-[100] rounded-full border-4 border-blue-500 bg-white shadow-2xl overflow-hidden bg-slate-50 flex items-center justify-center"
                                              style={{
                                                  width: 150, height: 150,
                                                  left: svgCursor.screenX - 75,
-                                                 top: svgCursor.screenY - 180, // Offset lensa di atas jari
+                                                 top: svgCursor.screenY - 180, 
                                              }}>
-                                             {/* Titik Tengah Crosshair */}
                                              <div className="absolute inset-0 m-auto w-4 h-4 border-2 border-blue-400/50 rounded-full z-10 pointer-events-none"></div>
                                              <div className="absolute inset-0 m-auto w-0.5 h-2 bg-blue-400/50 z-10 pointer-events-none"></div>
                                              <div className="absolute inset-0 m-auto h-0.5 w-2 bg-blue-400/50 z-10 pointer-events-none"></div>
 
-                                             {/* Potongan SVG dengan efek perbesaran viewBox */}
                                              <svg width={150} height={150} viewBox={`${svgCursor.x - 50} ${svgCursor.y - 50} 100 100`}>
-                                                 {fishboneContent}
+                                                 {activeTab === 'fishbone' ? fishboneContent : ftaContent}
                                              </svg>
                                         </div>
                                     )}
@@ -924,76 +975,87 @@
                                         <button onClick={() => setZoom(z => Math.max(0.4, z - 0.15))} className="p-2 md:p-3 hover:bg-slate-100 rounded-lg text-slate-600"><ZoomOut className="w-5 h-5" /></button>
                                         <div className="h-6 w-px bg-slate-200 mx-1" />
                                         <button onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }} className="p-2 md:p-3 hover:bg-slate-100 rounded-lg text-slate-600"><RotateCcw className="w-5 h-5" /></button>
+                                        <div className="h-6 w-px bg-slate-200 mx-1" />
+                                        <button onClick={() => setIsMagnifierActive(!isMagnifierActive)} className={`p-2 md:p-3 rounded-lg text-slate-600 transition-colors ${isMagnifierActive ? 'bg-blue-100 text-blue-600' : 'hover:bg-slate-100'}`} title="Toggle Kaca Pembesar">
+                                            <Search className="w-5 h-5" />
+                                        </button>
                                     </div>
                                     
                                     <div className="absolute top-3 left-4 text-xs text-slate-500 pointer-events-none no-print flex flex-col gap-1.5 bg-white/80 px-3 py-2 rounded-lg border shadow-sm max-w-[280px] md:max-w-none">
-                                        <div className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-green-600 shrink-0" /><span>Tandai Validasi di tabel bawah.</span></div>
-                                        <div className="flex items-center gap-1.5"><ZoomIn className="w-3.5 h-3.5 text-blue-600 shrink-0" /><span><b>Tahan & Geser</b> kotak/titik untuk memunculkan <i>Kaca Pembesar</i>.</span></div>
+                                        {activeTab === 'fishbone' ? (
+                                            <div className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-green-600 shrink-0" /><span>Tandai Validasi di tabel bawah.</span></div>
+                                        ) : (
+                                            <div className="flex items-center gap-1.5"><Network className="w-3.5 h-3.5 text-blue-600 shrink-0" /><span>Arahkan atau klik kotak untuk menambah event.</span></div>
+                                        )}
+                                        <div className="flex items-center gap-1.5"><Move className="w-3.5 h-3.5 text-blue-600 shrink-0" /><span><b>Tahan & Geser</b> kotak, titik sendi, dan ujung panah.</span></div>
                                     </div>
 
                                     <div style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, transformOrigin: 'center center', transition: isPanning ? 'none' : 'transform 0.1s ease-out' }} className="relative diagram-scalable-wrapper">
                                         <svg ref={svgRef} width={SVG_WIDTH} height={SVG_HEIGHT} viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`} className="overflow-visible filter drop-shadow-md">
-                                            {fishboneContent}
+                                            {activeTab === 'fishbone' ? fishboneContent : ftaContent}
                                         </svg>
                                     </div>
                                 </div>
 
-                                <div className="flex-1 w-full max-w-7xl mx-auto p-4 md:p-8 table-wrapper bg-slate-50 space-y-6">
-                                    {data.conclusion && (
-                                        <div className="bg-white border rounded-xl p-5 shadow-sm flex items-start gap-4 avoid-break">
-                                            <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl mt-0.5"><FileText className="w-5 h-5" /></div>
-                                            <div className="flex-1">
-                                                <h3 className="text-xs font-bold text-blue-800 uppercase tracking-wider mb-1">Executive Conclusion</h3>
-                                                <textarea rows="2" value={data.conclusion} onChange={(e) => setData(prev => ({ ...prev, conclusion: e.target.value }))} className="w-full text-sm text-slate-700 bg-transparent outline-none resize-none font-medium" />
+                                {/* TABEL KHUSUS FISHBONE */}
+                                {activeTab === 'fishbone' && (
+                                    <div className="flex-1 w-full max-w-7xl mx-auto p-4 md:p-8 table-wrapper bg-slate-50 space-y-6">
+                                        {data.conclusion && (
+                                            <div className="bg-white border rounded-xl p-5 shadow-sm flex items-start gap-4 avoid-break">
+                                                <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl mt-0.5"><FileText className="w-5 h-5" /></div>
+                                                <div className="flex-1">
+                                                    <h3 className="text-xs font-bold text-blue-800 uppercase tracking-wider mb-1">Executive Conclusion</h3>
+                                                    <textarea rows="2" value={data.conclusion} onChange={(e) => setData(prev => ({ ...prev, conclusion: e.target.value }))} className="w-full text-sm text-slate-700 bg-transparent outline-none resize-none font-medium" />
+                                                </div>
                                             </div>
-                                        </div>
-                                    )}
-                                    <div className="bg-white border rounded-xl shadow-sm overflow-hidden">
-                                        <div className="px-6 py-4 border-b flex flex-wrap gap-4 justify-between items-center">
-                                            <div><h2 className="text-lg font-bold text-[#005073] uppercase">Corrective Action Plan</h2></div>
-                                            <div className="flex items-center gap-2 no-print">
-                                                <button onClick={exportExcel} className="bg-emerald-50 text-emerald-700 border px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2"><FileSpreadsheet className="w-4 h-4" /> Export Excel</button>
-                                                <button onClick={() => { if(data.categories.length > 0) handleAddCause(data.categories[0].id); }} className="bg-[#059669] text-white px-4 py-2 rounded-lg text-sm font-medium"><Plus className="w-4 h-4 inline" /> Tambah Baris</button>
+                                        )}
+                                        <div className="bg-white border rounded-xl shadow-sm overflow-hidden">
+                                            <div className="px-6 py-4 border-b flex flex-wrap gap-4 justify-between items-center">
+                                                <div><h2 className="text-lg font-bold text-[#005073] uppercase">Corrective Action Plan</h2></div>
+                                                <div className="flex items-center gap-2 no-print">
+                                                    <button onClick={exportExcel} className="bg-emerald-50 text-emerald-700 border px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2"><FileSpreadsheet className="w-4 h-4" /> Export Excel</button>
+                                                    <button onClick={() => { if(data.categories.length > 0) handleAddCause(data.categories[0].id); }} className="bg-[#059669] text-white px-4 py-2 rounded-lg text-sm font-medium"><Plus className="w-4 h-4 inline" /> Tambah Baris</button>
+                                                </div>
                                             </div>
-                                        </div>
-                                        <div className="overflow-x-auto">
-                                            <table className="w-full text-sm text-left border-collapse">
-                                                <thead className="bg-[#005073] text-white">
-                                                    <tr>
-                                                        <th className="border-b border-slate-300 p-3 font-semibold w-40">Category</th>
-                                                        <th className="border-b border-slate-300 p-3 font-semibold w-64">Main Cause</th>
-                                                        <th className="border-b border-slate-300 p-3 font-semibold w-36">Validasi</th>
-                                                        <th className="border-b border-slate-300 p-3 font-semibold min-w-[280px]">Sub Cause</th>
-                                                        <th className="border-b border-slate-300 p-3 font-semibold min-w-[280px]">Action Plan</th>
-                                                        <th className="border-b border-slate-300 p-3 font-semibold w-24">PIC</th>
-                                                        <th className="border-b border-slate-300 p-3 font-semibold w-24">Due Date</th>
-                                                        <th className="border-b border-slate-300 p-3 font-semibold w-12 text-center no-print">Act</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="divide-y divide-slate-200 bg-white">
-                                                    {data.categories.map((cat) => (
-                                                        cat.causes.map((cause, idx) => (
-                                                            <tr key={cause.id} onClick={() => setHighlightedCause(cause.id)} className={`transition-colors cursor-pointer avoid-break ${highlightedCause === cause.id ? 'bg-yellow-50' : 'hover:bg-slate-50'}`}>
-                                                                {idx === 0 && <td rowSpan={cat.causes.length} className="border-r p-3 align-top bg-slate-50/50"><input value={cat.name} onChange={(e) => { const val = e.target.value; setData(prev => ({ ...prev, categories: prev.categories.map(c => c.id === cat.id ? { ...c, name: val } : c) })); }} className="w-full bg-transparent font-bold text-slate-700 outline-none focus:border-b border-blue-500" /></td>}
-                                                                <td className="p-2 border-r align-top"><textarea rows="3" value={cause.text} onChange={(e) => handleTableEdit(cat.id, cause.id, 'text', e.target.value)} className="w-full bg-transparent outline-none resize-none p-1 font-medium" /></td>
-                                                                <td className="p-2 border-r align-top">
-                                                                    <select value={cause.validity || 'pending'} onChange={(e) => handleTableEdit(cat.id, cause.id, 'validity', e.target.value)} className={`w-full text-[11px] font-bold outline-none p-1.5 rounded border ${cause.validity === 'valid' ? 'bg-green-50 text-green-700' : cause.validity === 'invalid' ? 'bg-slate-100 text-slate-500 line-through' : 'bg-white'}`}>
-                                                                        <option value="pending">- Belum -</option><option value="valid">✅ Valid</option><option value="invalid">❌ Invalid</option>
-                                                                    </select>
-                                                                </td>
-                                                                <td className="p-2 border-r align-top"><textarea rows="4" value={cause.subCause} onChange={(e) => handleTableEdit(cat.id, cause.id, 'subCause', e.target.value)} className="w-full bg-transparent outline-none p-1 text-slate-600 text-xs" /></td>
-                                                                <td className="p-2 border-r align-top"><textarea rows="4" value={cause.actionPlan} onChange={(e) => handleTableEdit(cat.id, cause.id, 'actionPlan', e.target.value)} className="w-full bg-transparent outline-none p-1 text-slate-700 text-xs" /></td>
-                                                                <td className="p-2 border-r align-top"><input type="text" value={cause.pic} onChange={(e) => handleTableEdit(cat.id, cause.id, 'pic', e.target.value)} className="w-full bg-transparent outline-none p-1 text-slate-600 text-xs" /></td>
-                                                                <td className="p-2 border-r align-top"><input type="date" value={cause.dueDate} onChange={(e) => handleTableEdit(cat.id, cause.id, 'dueDate', e.target.value)} className="w-full bg-transparent outline-none p-1 text-slate-600 text-xs" /></td>
-                                                                <td className="p-2 text-center align-top no-print"><button onClick={(e) => handleDeleteCause(cat.id, idx, e)} className="text-red-400 hover:text-red-600 p-1.5"><Trash2 className="w-4 h-4 mx-auto" /></button></td>
-                                                            </tr>
-                                                        ))
-                                                    ))}
-                                                </tbody>
-                                            </table>
+                                            <div className="overflow-x-auto">
+                                                <table className="w-full text-sm text-left border-collapse">
+                                                    <thead className="bg-[#005073] text-white">
+                                                        <tr>
+                                                            <th className="border-b border-slate-300 p-3 font-semibold w-40">Category</th>
+                                                            <th className="border-b border-slate-300 p-3 font-semibold w-64">Main Cause</th>
+                                                            <th className="border-b border-slate-300 p-3 font-semibold w-36">Validasi</th>
+                                                            <th className="border-b border-slate-300 p-3 font-semibold min-w-[280px]">Sub Cause</th>
+                                                            <th className="border-b border-slate-300 p-3 font-semibold min-w-[280px]">Action Plan</th>
+                                                            <th className="border-b border-slate-300 p-3 font-semibold w-24">PIC</th>
+                                                            <th className="border-b border-slate-300 p-3 font-semibold w-24">Due Date</th>
+                                                            <th className="border-b border-slate-300 p-3 font-semibold w-12 text-center no-print">Act</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-slate-200 bg-white">
+                                                        {data.categories.map((cat) => (
+                                                            cat.causes.map((cause, idx) => (
+                                                                <tr key={cause.id} onClick={() => setHighlightedCause(cause.id)} className={`transition-colors cursor-pointer avoid-break ${highlightedCause === cause.id ? 'bg-yellow-50' : 'hover:bg-slate-50'}`}>
+                                                                    {idx === 0 && <td rowSpan={cat.causes.length} className="border-r p-3 align-top bg-slate-50/50"><input value={cat.name} onChange={(e) => { const val = e.target.value; setData(prev => ({ ...prev, categories: prev.categories.map(c => c.id === cat.id ? { ...c, name: val } : c) })); }} className="w-full bg-transparent font-bold text-slate-700 outline-none focus:border-b border-blue-500" /></td>}
+                                                                    <td className="p-2 border-r align-top"><textarea rows="3" value={cause.text} onChange={(e) => handleTableEdit(cat.id, cause.id, 'text', e.target.value)} className="w-full bg-transparent outline-none resize-none p-1 font-medium" /></td>
+                                                                    <td className="p-2 border-r align-top">
+                                                                        <select value={cause.validity || 'pending'} onChange={(e) => handleTableEdit(cat.id, cause.id, 'validity', e.target.value)} className={`w-full text-[11px] font-bold outline-none p-1.5 rounded border ${cause.validity === 'valid' ? 'bg-green-50 text-green-700' : cause.validity === 'invalid' ? 'bg-slate-100 text-slate-500 line-through' : 'bg-white'}`}>
+                                                                            <option value="pending">- Belum -</option><option value="valid">✅ Valid</option><option value="invalid">❌ Invalid</option>
+                                                                        </select>
+                                                                    </td>
+                                                                    <td className="p-2 border-r align-top"><textarea rows="4" value={cause.subCause} onChange={(e) => handleTableEdit(cat.id, cause.id, 'subCause', e.target.value)} className="w-full bg-transparent outline-none p-1 text-slate-600 text-xs" /></td>
+                                                                    <td className="p-2 border-r align-top"><textarea rows="4" value={cause.actionPlan} onChange={(e) => handleTableEdit(cat.id, cause.id, 'actionPlan', e.target.value)} className="w-full bg-transparent outline-none p-1 text-slate-700 text-xs" /></td>
+                                                                    <td className="p-2 border-r align-top"><input type="text" value={cause.pic} onChange={(e) => handleTableEdit(cat.id, cause.id, 'pic', e.target.value)} className="w-full bg-transparent outline-none p-1 text-slate-600 text-xs" /></td>
+                                                                    <td className="p-2 border-r align-top"><input type="date" value={cause.dueDate} onChange={(e) => handleTableEdit(cat.id, cause.id, 'dueDate', e.target.value)} className="w-full bg-transparent outline-none p-1 text-slate-600 text-xs" /></td>
+                                                                    <td className="p-2 text-center align-top no-print"><button onClick={(e) => handleDeleteCause(cat.id, idx, e)} className="text-red-400 hover:text-red-600 p-1.5"><Trash2 className="w-4 h-4 mx-auto" /></button></td>
+                                                                </tr>
+                                                            ))
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
+                                )}
                             </div>
                         )}
 
@@ -1029,20 +1091,6 @@
                                             <label className="text-xs font-bold text-blue-700 uppercase mb-2 block"><FileText className="w-4 h-4 inline" /> Action Plan</label>
                                             <textarea rows="4" value={fiveWhys.actionPlan} onChange={(e) => setFiveWhys({...fiveWhys, actionPlan: e.target.value})} className="w-full bg-transparent text-blue-900 font-medium outline-none resize-none" />
                                         </div>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* FTA TAB */}
-                        {activeTab === 'fta' && (
-                            <div className="flex flex-col flex-1 bg-slate-50 overflow-auto animate-in fade-in p-8 print-wrapper">
-                                <div className="w-full min-w-max mx-auto bg-white p-8 rounded-2xl shadow-sm border">
-                                    <div className="mb-10 text-center">
-                                        <h2 className="text-2xl font-bold flex items-center justify-center gap-2"><Network className="w-6 h-6 text-blue-600" /> Fault Tree Analysis</h2>
-                                    </div>
-                                    <div className="fta-tree flex justify-center w-full">
-                                        <ul>{renderFTANode(ftaData, true)}</ul>
                                     </div>
                                 </div>
                             </div>
