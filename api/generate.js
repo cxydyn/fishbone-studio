@@ -3,7 +3,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { prompt, model = 'gemini-3.1-flash-lite', tool = 'fishbone', expectedCategories = [] } = req.body;
+  const { prompt, model = 'gemini-3.1-flash-lite', tool = 'fishbone', expectedCategories = [], additionalFacts = '', existingData = null } = req.body;
   const apiKey = process.env.GEMINI_API_KEY;
 
   if (!apiKey) {
@@ -83,6 +83,21 @@ Kembalikan HANYA JSON:
     }
   ]
 }`;
+    }
+
+    // TAMBAHAN INSTRUKSI REFINEMENT ITERATIF
+    if (existingData && additionalFacts.trim()) {
+      systemPrompt += `\n\n--- PENTING: REFINEMENT BERDASARKAN FAKTA BARU ---
+DATA DIAGRAM EKSISTING SAAT INI:
+${JSON.stringify(existingData)}
+
+FAKTA/BUKTI BARU DARI DISKUSI TIM:
+"${additionalFacts}"
+
+TUGAS ANDA: Perbarui struktur JSON EKSISTING di atas dengan mengintegrasikan FAKTA BARU. 
+JANGAN merombak total struktur eksisting jika tidak perlu. Pertahankan akar masalah yang masih valid.
+Cukup sesuaikan, tambahkan cabang penyebab/event baru, atau perbaiki hipotesis lama yang ternyata bertentangan dengan fakta baru. 
+Kembalikan format JSON yang sama persis seperti aslinya.`;
     }
 
     const response = await fetch(
