@@ -330,10 +330,17 @@
 
             const exportPNG = async () => {
                 setIsExporting(true);
-                if (activeTab === 'fishbone' && svgRef.current) {
-                    showToast("Menyiapkan Gambar PNG Fishbone...");
+                if ((activeTab === 'fishbone' || activeTab === 'fta') && svgRef.current) {
+                    showToast(`Menyiapkan Gambar PNG ${activeTab.toUpperCase()}...`);
                     try {
                         const svgElement = svgRef.current.cloneNode(true);
+                        if (!svgElement.getAttribute('xmlns')) svgElement.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+                        
+                        // Sinkronisasi textarea (input teks FTA/Fishbone) agar tidak kosong saat diekspor
+                        const origTextareas = svgRef.current.querySelectorAll('textarea');
+                        const clonedTextareas = svgElement.querySelectorAll('textarea');
+                        origTextareas.forEach((el, i) => { if (clonedTextareas[i]) clonedTextareas[i].innerHTML = el.value; });
+
                         svgElement.querySelectorAll('.no-print').forEach(el => el.remove());
                         svgElement.querySelectorAll('.canvas-outer-bg').forEach(el => { 
                             el.setAttribute('fill', '#ffffff'); el.setAttribute('stroke', '#e2e8f0'); 
@@ -349,7 +356,7 @@
                             ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, SVG_WIDTH, SVG_HEIGHT);
                             ctx.drawImage(img, 0, 0, SVG_WIDTH, SVG_HEIGHT);
                             const link = document.createElement('a'); 
-                            link.download = `Fishbone-Diagram-${Date.now()}.png`; link.href = canvas.toDataURL('image/png'); link.click();
+                            link.download = `RCA-${activeTab.toUpperCase()}-${Date.now()}.png`; link.href = canvas.toDataURL('image/png'); link.click();
                             URL.revokeObjectURL(blobURL); 
                             setIsExporting(false); showToast("PNG berhasil diunduh!");
                         };
@@ -389,6 +396,38 @@
                 const svgBg = element.querySelector('.canvas-outer-bg');
                 if (svgBg) { svgBg.setAttribute('fill', '#ffffff'); svgBg.setAttribute('stroke', '#e2e8f0'); }
 
+                // Trik: Convert SVG ke Image native sementara agar sistem PDF bisa merender grafik SVG + foreignObject
+                let tempImg = null;
+                let originalSvg = null;
+                let blobURL = null;
+                if ((activeTab === 'fishbone' || activeTab === 'fta') && svgRef.current) {
+                    originalSvg = svgRef.current;
+                    const clonedSvg = originalSvg.cloneNode(true);
+                    if (!clonedSvg.getAttribute('xmlns')) clonedSvg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+                    
+                    const origInputs = originalSvg.querySelectorAll('textarea');
+                    const clonedInputs = clonedSvg.querySelectorAll('textarea');
+                    origInputs.forEach((el, i) => { if (clonedInputs[i]) clonedInputs[i].innerHTML = el.value; });
+                    
+                    const svgBlob = new Blob([new XMLSerializer().serializeToString(clonedSvg)], { type: 'image/svg+xml;charset=utf-8' });
+                    blobURL = URL.createObjectURL(svgBlob);
+                    
+                    await new Promise((resolve) => {
+                        tempImg = new Image();
+                        tempImg.onload = resolve;
+                        tempImg.onerror = resolve;
+                        tempImg.src = blobURL;
+                        tempImg.style.width = '100%';
+                        tempImg.style.height = 'auto';
+                        tempImg.style.display = 'block';
+                    });
+                    
+                    if (tempImg) {
+                        originalSvg.style.display = 'none';
+                        originalSvg.parentNode.insertBefore(tempImg, originalSvg);
+                    }
+                }
+
                 await new Promise(resolve => setTimeout(resolve, 300));
 
                 const opt = {
@@ -402,9 +441,11 @@
 
                 html2pdf().set(opt).from(element).save().then(() => {
                     element.classList.remove('pdf-mode-active'); noPrintElements.forEach(el => el.style.display = '');
+                    if (tempImg && originalSvg) { tempImg.remove(); originalSvg.style.display = ''; URL.revokeObjectURL(blobURL); }
                     setIsExporting(false);
                 }).catch((e) => {
                     element.classList.remove('pdf-mode-active'); noPrintElements.forEach(el => el.style.display = '');
+                    if (tempImg && originalSvg) { tempImg.remove(); originalSvg.style.display = ''; URL.revokeObjectURL(blobURL); }
                     setIsExporting(false); showToast("Gagal membuat PDF.");
                 });
             };
