@@ -479,6 +479,7 @@
                 e.stopPropagation(); 
                 setDragItem({ type, id, catId, causeId, startX: e.clientX, startY: e.clientY }); 
                 if (type === 'cause' || type === 'subcause') setHighlightedCause(causeId || id); 
+                if (type === 'fta_node') setHighlightedCause(id);
                 
                 if (svgRef.current) {
                     const pt = svgRef.current.createSVGPoint();
@@ -730,13 +731,13 @@
                     const width = Math.max(120, (node.customWidth || 160) + dw); const height = Math.max(60, (node.customHeight || 100) + dh);
                     const actX = node.baseX + (node.offsetX || 0) + dx; const actY = node.baseY + (node.offsetY || 0) + dy;
                     
-                    const childrenNodes = []; const edges = []; const gateElements = [];
+                    const childrenNodes = []; const edges = []; const gateElements = []; const activeMenus = [];
                     
                     if (node.children && node.children.length > 0) {
                         const gateY = actY + height / 2 + 25;
                         edges.push(<line key={`e2g-${node.id}`} x1={actX} y1={actY + height / 2} x2={actX} y2={gateY - 15} stroke="#94a3b8" strokeWidth="2" />);
                         gateElements.push(
-                            <g key={`gate-${node.id}`} transform={`translate(${actX - 22}, ${gateY - 17})`} className="cursor-pointer group/gate hover:scale-110 transition-transform no-print" onPointerDown={e => { e.stopPropagation(); handleFTAUpdate(node.id, 'gate', node.gate === 'AND' ? 'OR' : 'AND'); }}>
+                            <g key={`gate-${node.id}`} transform={`translate(${actX - 22}, ${gateY - 17})`} className="cursor-pointer group/gate hover:opacity-80 transition-opacity no-print" onPointerDown={e => { e.stopPropagation(); handleFTAUpdate(node.id, 'gate', node.gate === 'AND' ? 'OR' : 'AND'); }}>
                                 {node.gate === 'AND' ? (
                                     <svg width="44" height="34" viewBox="0 0 44 34"><path d="M 4 32 L 4 16 A 18 14 0 0 1 40 16 L 40 32 Z" fill="#1e293b" stroke="#1e293b" strokeWidth="2"/><text x="22" y="24" textAnchor="middle" fontSize="10" fontWeight="bold" fill="#ffffff">AND</text></svg>
                                 ) : (
@@ -750,7 +751,7 @@
                             const cHeight = Math.max(60, (c.customHeight || 100)); 
                             edges.push(<path key={`edge-${node.id}-${c.id}`} d={`M ${actX} ${gateY + 17} V ${gateY + 35} H ${cActX} V ${cActY - cHeight / 2}`} fill="none" stroke="#94a3b8" strokeWidth="2" />);
                             const childRenders = renderNodeSVG(c);
-                            childrenNodes.push(...childRenders.nodes); edges.push(...childRenders.edges); gateElements.push(...childRenders.gateElements);
+                            childrenNodes.push(...childRenders.nodes); edges.push(...childRenders.edges); gateElements.push(...childRenders.gateElements); activeMenus.push(...childRenders.activeMenus);
                         });
                     }
                     
@@ -763,32 +764,41 @@
                         <g key={node.id} className="fta-node-group">
                             <rect x={actX - width/2} y={actY - height/2} width={width} height={height} fill="transparent" className="cursor-grab active:cursor-grabbing" onPointerDown={e => startDrag(e, 'fta_node', node.id)} />
                             <foreignObject x={actX - width/2} y={actY - height/2} width={width} height={height} className="pointer-events-none overflow-visible">
-                                <div className={`w-full h-full flex flex-col items-center justify-center p-2 border-2 shadow-sm relative group pointer-events-auto ${boxClass}`}>
+                                <div className={`w-full h-full flex flex-col items-center justify-center p-2 border-2 shadow-sm relative pointer-events-auto transition-all ${boxClass} ${highlightedCause === node.id ? 'ring-4 ring-yellow-400 border-yellow-500' : ''}`}>
                                     <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 pointer-events-none">{node.type}</div>
-                                    <textarea value={node.text} onPointerDown={e => e.stopPropagation()} onChange={(e) => handleFTAUpdate(node.id, 'text', e.target.value)} className={`w-full h-full bg-transparent text-sm font-semibold text-center outline-none resize-none overflow-hidden ${textClass}`} placeholder="Tulis event..." />
+                                    <textarea value={node.text} onPointerDown={e => { e.stopPropagation(); setHighlightedCause(node.id); }} onChange={(e) => handleFTAUpdate(node.id, 'text', e.target.value)} className={`w-full h-full bg-transparent text-sm font-semibold text-center outline-none resize-none overflow-hidden ${textClass}`} placeholder="Tulis event..." />
                                     {node.validity === 'valid' && <CheckCircle2 className="w-5 h-5 text-green-500 absolute -top-2 -right-2 bg-white rounded-full pointer-events-none" />}
                                     {node.validity === 'invalid' && <XCircle className="w-5 h-5 text-slate-400 absolute -top-2 -right-2 bg-white rounded-full pointer-events-none" />}
-                                    <div className="absolute top-0 right-0 translate-x-full opacity-0 group-hover:opacity-100 transition-opacity bg-white border border-slate-200 shadow-xl rounded-lg p-1.5 ml-2 flex flex-col gap-1 z-50 w-36 no-print" onPointerDown={e=>e.stopPropagation()}>
-                                        <div className="flex gap-1 mb-1 border-b border-slate-100 pb-1.5">
-                                            <button onClick={() => handleFTAUpdate(node.id, 'validity', 'valid')} className="flex-1 py-1 text-center bg-green-50 text-green-600 rounded hover:bg-green-100">✅</button>
-                                            <button onClick={() => handleFTAUpdate(node.id, 'validity', 'invalid')} className="flex-1 py-1 text-center bg-red-50 text-red-600 rounded hover:bg-red-100">❌</button>
-                                            <button onClick={() => handleFTAUpdate(node.id, 'validity', 'pending')} className="flex-1 py-1 text-center bg-slate-50 text-slate-600 rounded hover:bg-slate-100">↻</button>
-                                        </div>
-                                        {node.type !== 'basic' && (
-                                            <>
-                                                <button onClick={() => handleFTAAddChild(node.id, 'intermediate')} className="text-[10px] text-left font-semibold text-blue-700 hover:bg-blue-50 px-2 py-1.5 rounded">+ Intermediate</button>
-                                                <button onClick={() => handleFTAAddChild(node.id, 'basic')} className="text-[10px] text-left font-semibold text-red-700 hover:bg-red-50 px-2 py-1.5 rounded">+ Basic Event</button>
-                                            </>
-                                        )}
-                                        {node.id !== 'root' && <button onClick={() => handleFTARemove(node.id)} className="text-[10px] text-left font-semibold text-slate-600 hover:bg-slate-100 px-2 py-1.5 rounded mt-1 border-t border-slate-100 pt-1.5">Hapus Event</button>}
-                                    </div>
                                 </div>
                             </foreignObject>
                             <rect x={actX + width/2 - 12} y={actY + height/2 - 12} width="12" height="12" fill="transparent" className="cursor-nwse-resize no-print hover:bg-black/10" onPointerDown={e => startResize(e, node.id, null, width, height, true)} />
                             <path d={`M ${actX+width/2-8} ${actY+height/2} L ${actX+width/2} ${actY+height/2} L ${actX+width/2} ${actY+height/2-8} Z`} fill="#cbd5e1" className="no-print pointer-events-none" />
                         </g>
                     );
-                    return { nodes: [nodeObj, ...childrenNodes], edges, gateElements };
+                    
+                    if (highlightedCause === node.id) {
+                        activeMenus.push(
+                            <foreignObject key={`menu-${node.id}`} x={actX + width/2 + 8} y={actY - height/2} width="180" height="250" className="overflow-visible pointer-events-auto z-50">
+                                <div className="bg-white border border-slate-200 shadow-2xl rounded-xl p-2 flex flex-col gap-1 w-40 no-print animate-in fade-in zoom-in duration-200" onPointerDown={e=>e.stopPropagation()}>
+                                    <div className="text-[10px] font-bold text-slate-500 mb-1 px-1">Validasi:</div>
+                                    <div className="flex gap-1 mb-1 border-b border-slate-100 pb-2">
+                                        <button onClick={() => handleFTAUpdate(node.id, 'validity', 'valid')} className="flex-1 py-1.5 text-center bg-green-50 text-green-600 rounded hover:bg-green-100" title="Valid">✅</button>
+                                        <button onClick={() => handleFTAUpdate(node.id, 'validity', 'invalid')} className="flex-1 py-1.5 text-center bg-red-50 text-red-600 rounded hover:bg-red-100" title="Invalid">❌</button>
+                                        <button onClick={() => handleFTAUpdate(node.id, 'validity', 'pending')} className="flex-1 py-1.5 text-center bg-slate-50 text-slate-600 rounded hover:bg-slate-100" title="Belum Diuji">↻</button>
+                                    </div>
+                                    {node.type !== 'basic' && (
+                                        <>
+                                            <button onClick={() => handleFTAAddChild(node.id, 'intermediate')} className="text-xs text-left font-semibold text-blue-700 hover:bg-blue-50 px-2 py-2 rounded">+ Intermediate</button>
+                                            <button onClick={() => handleFTAAddChild(node.id, 'basic')} className="text-xs text-left font-semibold text-red-700 hover:bg-red-50 px-2 py-2 rounded">+ Basic Event</button>
+                                        </>
+                                    )}
+                                    {node.id !== 'root' && <button onClick={() => { handleFTARemove(node.id); setHighlightedCause(null); }} className="text-xs text-left font-semibold text-slate-600 hover:bg-slate-100 px-2 py-2 rounded mt-1 border-t border-slate-100 pt-2">🗑️ Hapus Event</button>}
+                                </div>
+                            </foreignObject>
+                        );
+                    }
+
+                    return { nodes: [nodeObj, ...childrenNodes], edges, gateElements, activeMenus };
                 };
 
                 const rendered = renderNodeSVG(layoutFta);
@@ -798,6 +808,7 @@
                         {rendered.edges}
                         {rendered.gateElements}
                         {rendered.nodes}
+                        {rendered.activeMenus}
                     </>
                 );
             })();
