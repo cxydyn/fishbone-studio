@@ -55,6 +55,27 @@ Kembalikan HANYA JSON murni dengan format persis seperti ini:
     }
     // PROMPT UNTUK FISHBONE (6M)
     else if (tool === 'fishbone') {
+      const default6M = ["Man (Tenaga Kerja)", "Machine (Mesin)", "Method (Metode)", "Material (Bahan Baku)", "Measurement (Pengukuran)", "Milieu / Environment (Lingkungan)"];
+      const targetCategories = (expectedCategories && expectedCategories.length > 0) ? expectedCategories : default6M;
+      const catListStr = targetCategories.map(c => `"${c}"`).join(', ');
+
+      systemPrompt = `Anda adalah Ahli Root Cause Analysis. Analisis masalah: "${prompt}".
+Gunakan TEPAT ${targetCategories.length} kategori berikut: [${catListStr}].
+Kembalikan HANYA JSON murni (tanpa format markdown) dengan struktur:
+{
+  "problem": "Judul Masalah",
+  "conclusion": "Kesimpulan Eksekutif",
+  "categories": [
+    {
+      "name": "Nama Kategori",
+      "causes": [
+        { "text": "Penyebab Utama", "subCause": "Detail sub-cause", "actionPlan": "Rencana tindakan" }
+      ]
+    }
+  ]
+}`;
+    }
+    // PROMPT UNTUK FAULT TREE ANALYSIS (FTA)
     else if (tool === 'fta') {
       systemPrompt = `Anda adalah Ahli Fault Tree Analysis (FTA). Buat pohon kegagalan dari Top Event: "${prompt}".
 Struktur berbentuk pohon (tree). "gate" bisa "OR" atau "AND". "type" bisa "top", "intermediate", atau "basic".
@@ -80,7 +101,7 @@ Kembalikan HANYA JSON:
 }`;
     }
 
-    // TAMBAHAN INSTRUKSI REFINEMENT ITERATIF (DIPERBARUI UNTUK MENDUKUNG 3 ALAT SEKALIGUS)
+    // TAMBAHAN INSTRUKSI REFINEMENT ITERATIF BERDASARKAN FAKTA BARU
     if (existingData && additionalFacts.trim()) {
       systemPrompt += `\n\n--- PENTING: REFINEMENT BERDASARKAN FAKTA BARU ---
 DATA DIAGRAM EKSISTING SAAT INI:
