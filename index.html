@@ -567,7 +567,8 @@
             };
 
             const handleAIGenerate = async () => {
-                if (!aiPrompt.trim()) return setAiError("Deskripsi masalah wajib diisi.");
+                let activePrompt = aiPrompt.trim() ? aiPrompt : data.problem;
+                if (!activePrompt && !aiAdditionalFacts.trim()) return setAiError("Deskripsi masalah atau Fakta Baru wajib diisi.");
                 
                 const activeModel = aiModel === 'custom' ? customAiModel.trim() : aiModel;
                 if (aiModel === 'custom' && !activeModel) return setAiError("Nama model kustom wajib diisi (misal: gemini-2.0-pro).");
@@ -577,22 +578,17 @@
                 if (aiModel === 'custom') localStorage.setItem('gemini_custom_model', activeModel);
                 
                 const expectedCategories = PRESETS['6M'].categories.map(c => c.name);
-                
-                let currentData = null;
-                if (activeTab === 'fishbone') currentData = data;
-                else if (activeTab === '5whys') currentData = fiveWhys;
-                else if (activeTab === 'fta') currentData = ftaData;
 
                 try {
                     const response = await fetch('/api/generate', {
                         method: 'POST', headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ 
-                            prompt: aiPrompt, 
+                            prompt: activePrompt, 
                             model: activeModel, 
-                            tool: activeTab, 
+                            tool: 'all', // Meminta 3 analisis sekaligus
                             expectedCategories,
                             additionalFacts: aiAdditionalFacts,
-                            existingData: aiAdditionalFacts.trim() ? currentData : null
+                            existingData: aiAdditionalFacts.trim() ? { fishbone: data, fiveWhys, fta: ftaData } : null
                         })
                     });
                     const resJson = await response.json();
@@ -600,8 +596,9 @@
                     let parsedData;
                     try { parsedData = JSON.parse(resJson.result); } catch (e) { parsedData = JSON.parse(resJson.result.replace(/```json/gi, '').replace(/```/gi, '').trim()); }
 
-                    if (activeTab === 'fishbone') {
-                        const mappedCategories = (parsedData.categories || []).map((cat, i) => {
+                    // Terapkan hasil ke Fishbone
+                    if (parsedData.fishbone && parsedData.fishbone.categories) {
+                        const mappedCategories = parsedData.fishbone.categories.map((cat, i) => {
                             const existingColor = PRESETS['6M'].categories[i]?.color || COLOR_PALETTE[i % COLOR_PALETTE.length];
                             return {
                                 id: `cat-ai-${Date.now()}-${i}`, name: cat.name || `Kategori ${i + 1}`, color: existingColor,
@@ -614,12 +611,19 @@
                                 })
                             };
                         });
-                        setData(formatPresetData({ name: 'Hasil Analisis AI 6M', problem: parsedData.problem || aiPrompt, conclusion: parsedData.conclusion || 'Analisis disusun AI.', categories: mappedCategories }));
-                    } else if (activeTab === '5whys') {
-                        setFiveWhys({ problem: parsedData.problem || aiPrompt, whys: parsedData.whys || [], rootCause: parsedData.rootCause || '', actionPlan: parsedData.actionPlan || '' });
-                    } else if (activeTab === 'fta') {
-                        setFtaData(parsedData);
+                        setData(formatPresetData({ name: 'Hasil Analisis AI 6M', problem: parsedData.problem || activePrompt, conclusion: parsedData.fishbone.conclusion || 'Analisis disusun AI.', categories: mappedCategories }));
+                    } 
+                    
+                    // Terapkan hasil ke 5 Whys
+                    if (parsedData.fiveWhys) {
+                        setFiveWhys({ problem: parsedData.problem || activePrompt, whys: parsedData.fiveWhys.whys || [], rootCause: parsedData.fiveWhys.rootCause || '', actionPlan: parsedData.fiveWhys.actionPlan || '' });
+                    } 
+                    
+                    // Terapkan hasil ke Fault Tree
+                    if (parsedData.fta) {
+                        setFtaData(parsedData.fta);
                     }
+                    
                     setShowAIModal(false); setAiPrompt(''); setAiAdditionalFacts(''); setZoom(1); setPan({ x: 0, y: 0 });
                 } catch (err) { setAiError(err.message); } finally { setIsGenerating(false); }
             };
@@ -1077,8 +1081,8 @@
                                         )}
                                     </div>
                                     <div>
-                                        <label className="text-xs font-semibold block mb-1">Deskripsi Masalah / Insiden Utama:</label>
-                                        <textarea rows="3" value={aiPrompt} onChange={(e) => setAiPrompt(e.target.value)} placeholder="Deskripsi masalah..." className="w-full bg-slate-50 border rounded-xl px-3 py-2 text-sm outline-none" />
+                                        <label className="text-xs font-semibold block mb-1">Deskripsi Masalah / Insiden Utama (Opsional jika Refinement):</label>
+                                        <textarea rows="3" value={aiPrompt} onChange={(e) => setAiPrompt(e.target.value)} placeholder="Biarkan kosong jika hanya ingin menambahkan Fakta Baru..." className="w-full bg-slate-50 border rounded-xl px-3 py-2 text-sm outline-none" />
                                     </div>
                                     <div className="bg-blue-50 border border-blue-100 rounded-xl p-3">
                                         <label className="text-xs font-bold text-blue-800 flex items-center gap-1.5 mb-1.5"><Sparkles className="w-3.5 h-3.5" /> Fakta Baru / Temuan Tim (Refinement)</label>
@@ -1088,7 +1092,7 @@
                                 </div>
                                 <div className="flex justify-end space-x-3 pt-2">
                                     <button onClick={() => setShowAIModal(false)} disabled={isGenerating} className="px-4 py-2 rounded-lg text-xs bg-slate-100">Batal</button>
-                                    <button onClick={handleAIGenerate} disabled={isGenerating || !aiPrompt.trim()} className="px-5 py-2 rounded-lg text-xs bg-indigo-600 text-white flex gap-2 items-center">{isGenerating ? <Loader2 className="w-4 h-4 animate-spin"/> : <Bot className="w-4 h-4"/>} Generate</button>
+                                    <button onClick={handleAIGenerate} disabled={isGenerating || (!aiPrompt.trim() && !aiAdditionalFacts.trim())} className="px-5 py-2 rounded-lg text-xs bg-indigo-600 text-white flex gap-2 items-center">{isGenerating ? <Loader2 className="w-4 h-4 animate-spin"/> : <Bot className="w-4 h-4"/>} Generate Semua Tool</button>
                                 </div>
                             </div>
                         </div>

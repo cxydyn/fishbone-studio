@@ -17,44 +17,44 @@ export default async function handler(req, res) {
   try {
     let systemPrompt = '';
 
-    // PROMPT UNTUK FISHBONE (6M)
-    if (tool === 'fishbone') {
+    // PROMPT GENERATE SEMUA TOOL SEKALIGUS (FISHBONE + 5WHYS + FTA)
+    if (tool === 'all') {
       const default6M = ["Man (Tenaga Kerja)", "Machine (Mesin)", "Method (Metode)", "Material (Bahan Baku)", "Measurement (Pengukuran)", "Milieu / Environment (Lingkungan)"];
       const targetCategories = (expectedCategories && expectedCategories.length >= 6) ? expectedCategories : (expectedCategories && expectedCategories.length > 0 ? expectedCategories : default6M);
       const catListStr = targetCategories.map(c => `"${c}"`).join(', ');
 
       systemPrompt = `Anda adalah Senior RCA Facilitator. Analisis masalah: "${prompt}".
-1. Hasilkan TEPAT ${targetCategories.length} KATEGORI ini: [${catListStr}].
-2. Setiap kategori minimal 2 Cause.
-3. Setiap Cause WAJIB memiliki "subCause" dan "actionPlan".
-Kembalikan JSON:
+Tugas Anda adalah menghasilkan 3 jenis analisis sekaligus (Fishbone, 5 Whys, dan Fault Tree) secara komprehensif dan saling berkaitan.
+
+1. FISHBONE (6M): Hasilkan TEPAT ${targetCategories.length} KATEGORI: [${catListStr}]. Tiap kategori min 2 Cause. Tiap Cause WAJIB punya "subCause" dan "actionPlan".
+2. 5 WHYS: Buat 5 level "Why" yang berurutan, temukan "rootCause" dan "actionPlan".
+3. FAULT TREE (FTA): Buat pohon kegagalan hierarkis. Node "top", "intermediate" (pakai "gate": "AND" atau "OR"), dan "basic". Min 3 level.
+
+Kembalikan HANYA JSON murni dengan format persis seperti ini:
 {
   "problem": "Masalah utama (singkat)",
-  "conclusion": "Kesimpulan eksekutif singkat",
-  "categories": [ { "name": "Nama Kategori", "causes": [ { "text": "Penyebab utama", "subCause": "Mekanisme detail kegagalan", "actionPlan": "Rencana perbaikan konkret" } ] } ]
-}`;
-    } 
-    
-    // PROMPT UNTUK 5 WHYS
-    else if (tool === '5whys') {
-      systemPrompt = `Anda adalah Senior RCA Facilitator. Analisis masalah ini dengan teknik 5 Whys: "${prompt}".
-Lakukan investigasi logis berurutan dari akibat hingga ke akar masalah sistemik.
-Kembalikan HANYA JSON:
-{
-  "problem": "Judul Masalah (Ringkas)",
-  "whys": [
-    "Why 1: [Alasan langsung terjadinya masalah]",
-    "Why 2: [Alasan mengapa Why 1 terjadi]",
-    "Why 3: [Alasan mengapa Why 2 terjadi]",
-    "Why 4: [Alasan mengapa Why 3 terjadi]",
-    "Why 5: [Akar masalah sistemik/proses]"
-  ],
-  "rootCause": "Kesimpulan akar masalah yang sebenarnya",
-  "actionPlan": "Rencana tindakan perbaikan dan pencegahan (CAPA) yang komprehensif"
+  "fishbone": {
+    "conclusion": "Kesimpulan eksekutif singkat",
+    "categories": [ { "name": "Nama Kategori", "causes": [ { "text": "Penyebab utama", "subCause": "Mekanisme detail", "actionPlan": "Rencana perbaikan" } ] } ]
+  },
+  "fiveWhys": {
+    "whys": [ "Why 1: ...", "Why 2: ...", "Why 3: ...", "Why 4: ...", "Why 5: ..." ],
+    "rootCause": "Kesimpulan akar masalah",
+    "actionPlan": "Rencana tindakan"
+  },
+  "fta": {
+    "id": "root", "text": "Kegagalan Utama (Top Event)", "type": "top", "gate": "OR",
+    "children": [
+      {
+        "id": "node-1", "text": "Subsistem A", "type": "intermediate", "gate": "AND",
+        "children": [ { "id": "node-1-1", "text": "Komponen X Rusak", "type": "basic" } ]
+      }
+    ]
+  }
 }`;
     }
-
-    // PROMPT UNTUK FAULT TREE ANALYSIS (FTA)
+    // PROMPT UNTUK FISHBONE (6M)
+    else if (tool === 'fishbone') {
     else if (tool === 'fta') {
       systemPrompt = `Anda adalah Ahli Fault Tree Analysis (FTA). Buat pohon kegagalan dari Top Event: "${prompt}".
 Struktur berbentuk pohon (tree). "gate" bisa "OR" atau "AND". "type" bisa "top", "intermediate", atau "basic".
@@ -75,17 +75,12 @@ Kembalikan HANYA JSON:
         { "id": "node-1-1", "text": "Komponen X Rusak", "type": "basic" },
         { "id": "node-1-2", "text": "Sistem Backup Gagal", "type": "basic" }
       ]
-    },
-    {
-      "id": "node-2",
-      "text": "Human Error",
-      "type": "basic"
     }
   ]
 }`;
     }
 
-    // TAMBAHAN INSTRUKSI REFINEMENT ITERATIF
+    // TAMBAHAN INSTRUKSI REFINEMENT ITERATIF (DIPERBARUI UNTUK MENDUKUNG 3 ALAT SEKALIGUS)
     if (existingData && additionalFacts.trim()) {
       systemPrompt += `\n\n--- PENTING: REFINEMENT BERDASARKAN FAKTA BARU ---
 DATA DIAGRAM EKSISTING SAAT INI:
@@ -94,10 +89,10 @@ ${JSON.stringify(existingData)}
 FAKTA/BUKTI BARU DARI DISKUSI TIM:
 "${additionalFacts}"
 
-TUGAS ANDA: Perbarui struktur JSON EKSISTING di atas dengan mengintegrasikan FAKTA BARU. 
+TUGAS ANDA: Perbarui seluruh struktur JSON (termasuk Fishbone, 5 Whys, dan FTA) dengan mengintegrasikan FAKTA BARU di atas. 
 JANGAN merombak total struktur eksisting jika tidak perlu. Pertahankan akar masalah yang masih valid.
 Cukup sesuaikan, tambahkan cabang penyebab/event baru, atau perbaiki hipotesis lama yang ternyata bertentangan dengan fakta baru. 
-Kembalikan format JSON yang sama persis seperti aslinya.`;
+Kembalikan format JSON gabungan yang sama persis seperti instruksi awal.`;
     }
 
     const response = await fetch(
