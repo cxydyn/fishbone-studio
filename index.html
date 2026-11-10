@@ -19,7 +19,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
     <!-- Import Map for React and Lucide Icons -->
-    <script type="importmap">
+        <script type="importmap">
     {
         "imports": {
             "react": "https://esm.sh/react@18.2.0",
@@ -40,7 +40,7 @@
             Sparkles, Info, Layers, ChevronDown, Edit2, Check, X,
             HelpCircle, Eye, EyeOff, Bot, Wand2, Loader2, Trash2, FileText, Move,
             Network, ListEnd, AlignEndHorizontal, Cloud, CloudOff, Users, Share2, Globe, LogOut, CheckCircle2, XCircle,
-            FileSpreadsheet, FileDown, Image as ImageIcon, Search
+            FileSpreadsheet, FileDown, Image as ImageIcon, Search, Folder, FolderOpen, Archive, CheckSquare, Calendar
         } from 'lucide-react';
 
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -144,12 +144,18 @@
             const [inRoom, setInRoom] = useState(false);
             const [activeRoomId, setActiveRoomId] = useState(null);
             const [activeRoomName, setActiveRoomName] = useState('');
+            const [activeRoomStatus, setActiveRoomStatus] = useState('active');
             const [lobbyRooms, setLobbyRooms] = useState([]);
             const [participants, setParticipants] = useState([]);
             
+            const [lobbyTab, setLobbyTab] = useState('active');
+            const [incidentDate, setIncidentDate] = useState('');
+            const [expandedFolders, setExpandedFolders] = useState({});
+
             const [showNewRoomForm, setShowNewRoomForm] = useState(false);
             const [newRoomName, setNewRoomName] = useState('');
             const [newRoomProblem, setNewRoomProblem] = useState('');
+            const [editRoomData, setEditRoomData] = useState(null);
 
             const [activeTab, setActiveTab] = useState('fishbone'); 
             const [data, setData] = useState(() => formatPresetData(PRESETS['6M']));
@@ -240,6 +246,7 @@
                     if (snap.exists()) {
                         const docData = snap.data();
                         setActiveRoomName(docData.name);
+                        setActiveRoomStatus(docData.status || 'active');
                         isRemoteUpdate.current = true; 
                         try {
                             const parsed = JSON.parse(docData.payload);
@@ -289,13 +296,23 @@
             };
             const createNewRoom = async () => {
                 if (!userName.trim() || !newRoomName.trim()) { showToast("Nama ruang/peserta wajib diisi."); return; }
+                if (!incidentDate) { showToast("Tanggal kejadian wajib diisi untuk pengkategorian folder."); return; }
                 localStorage.setItem('rca_username', userName);
                 const initialData = formatPresetData(PRESETS['6M']); initialData.problem = newRoomProblem || 'Masalah Baru';
                 const payload = JSON.stringify({ fishbone: initialData, fiveWhys, ftaData });
                 try {
                     const collRef = collection(db, 'artifacts', appId, 'public', 'data', 'rca_archives');
-                    const newDoc = await addDoc(collRef, { name: newRoomName, problem: initialData.problem, payload, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), createdBy: user.uid });
-                    setShowNewRoomForm(false); setNewRoomName(''); setNewRoomProblem(''); joinRoom(newDoc.id, newRoomName);
+                    const newDoc = await addDoc(collRef, { 
+                        name: newRoomName, 
+                        problem: initialData.problem, 
+                        payload, 
+                        status: 'active',
+                        incidentDate: incidentDate,
+                        createdAt: new Date().toISOString(), 
+                        updatedAt: new Date().toISOString(), 
+                        createdBy: user.uid 
+                    });
+                    setShowNewRoomForm(false); setNewRoomName(''); setNewRoomProblem(''); setIncidentDate(''); joinRoom(newDoc.id, newRoomName);
                 } catch(e) { showToast("Gagal membuat ruang."); }
             };
             const deleteRoom = async (id, e) => {
@@ -303,10 +320,54 @@
                 if (!confirm("Hapus ruangan ini permanen?")) return;
                 try { const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'rca_archives', id); await deleteDoc(docRef); showToast("Ruangan dihapus."); } catch(e) {}
             };
+
+            const handleUpdateRoom = async () => {
+                if (!editRoomData.name.trim() || !editRoomData.incidentDate) {
+                    showToast("Nama ruang dan Tanggal kejadian wajib diisi.");
+                    return;
+                }
+                try {
+                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'rca_archives', editRoomData.id);
+                    await setDoc(docRef, {
+                        name: editRoomData.name,
+                        incidentDate: editRoomData.incidentDate,
+                        problem: editRoomData.problem,
+                        status: editRoomData.status || 'active',
+                        updatedAt: new Date().toISOString()
+                    }, { merge: true });
+                    setEditRoomData(null);
+                    showToast("Info RCA berhasil diperbarui.");
+                } catch(e) {
+                    showToast("Gagal memperbarui RCA.");
+                }
+            };
+
             const handleShare = () => {
                 const textArea = document.createElement("textarea"); textArea.value = window.location.href; 
                 document.body.appendChild(textArea); textArea.select(); document.execCommand("copy"); document.body.removeChild(textArea);
                 showToast('Link disalin! Bagikan ke tim.');
+            };
+
+            const handleArchiveRoom = async () => {
+                if (!confirm("Tandai RCA ini sebagai Selesai dan pindahkan ke folder Arsip?")) return;
+                try {
+                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'rca_archives', activeRoomId);
+                    await setDoc(docRef, { status: 'archived', updatedAt: new Date().toISOString() }, { merge: true });
+                    showToast("RCA berhasil diarsipkan!");
+                } catch(e) {
+                    showToast("Gagal mengarsipkan RCA.");
+                }
+            };
+
+            const handleRestoreRoom = async () => {
+                if (!confirm("Buka kembali RCA ini (ubah status menjadi Berjalan)?")) return;
+                try {
+                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'rca_archives', activeRoomId);
+                    await setDoc(docRef, { status: 'active', updatedAt: new Date().toISOString() }, { merge: true });
+                    showToast("RCA kembali aktif!");
+                } catch(e) {
+                    showToast("Gagal mengaktifkan RCA.");
+                }
             };
 
             // --- EXPORT FUNCTIONS (EXCEL, PNG, & SMART PDF) ---
@@ -330,10 +391,34 @@
 
             const exportPNG = async () => {
                 setIsExporting(true);
-                if (activeTab === 'fishbone' && svgRef.current) {
-                    showToast("Menyiapkan Gambar PNG Fishbone...");
+                if ((activeTab === 'fishbone' || activeTab === 'fta') && svgRef.current) {
+                    showToast(`Menyiapkan Gambar PNG ${activeTab.toUpperCase()}...`);
                     try {
                         const svgElement = svgRef.current.cloneNode(true);
+                        if (!svgElement.getAttribute('xmlns')) svgElement.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+                        
+                        // FIX: Suntik namespace XML yang ketat ke semua elemen HTML dalam grafik agar tidak hang
+                        svgElement.querySelectorAll('foreignObject *').forEach(el => {
+                            el.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
+                        });
+
+                        // FIX: Menyertakan style CSS (warna, font) ke dalam SVG agar kotak tidak transparan
+                        const styleElem = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+                        let cssText = '';
+                        document.querySelectorAll('style').forEach(s => cssText += s.innerHTML + '\n');
+                        styleElem.textContent = cssText;
+                        svgElement.insertBefore(styleElem, svgElement.firstChild);
+                        
+                        // Sinkronisasi textarea (input teks FTA/Fishbone) agar tidak kosong saat diekspor
+                        const origTextareas = svgRef.current.querySelectorAll('textarea');
+                        const clonedTextareas = svgElement.querySelectorAll('textarea');
+                        origTextareas.forEach((el, i) => { 
+                            if (clonedTextareas[i]) {
+                                clonedTextareas[i].innerHTML = el.value;
+                                clonedTextareas[i].textContent = el.value; // Pastikan teks masuk
+                            } 
+                        });
+
                         svgElement.querySelectorAll('.no-print').forEach(el => el.remove());
                         svgElement.querySelectorAll('.canvas-outer-bg').forEach(el => { 
                             el.setAttribute('fill', '#ffffff'); el.setAttribute('stroke', '#e2e8f0'); 
@@ -342,18 +427,29 @@
                         const svgBlob = new Blob([new XMLSerializer().serializeToString(svgElement)], { type: 'image/svg+xml;charset=utf-8' });
                         const blobURL = URL.createObjectURL(svgBlob);
                         const img = new Image();
+                        
+                        // FIX: Tambahkan timeout agar loading tidak muter selamanya jika terjadi error
+                        const fallbackTimeout = setTimeout(() => {
+                            setIsExporting(false);
+                            showToast("Waktu habis saat memproses PNG.");
+                        }, 5000);
+
                         img.onload = () => {
+                            clearTimeout(fallbackTimeout);
                             const canvas = document.createElement('canvas');
                             canvas.width = SVG_WIDTH * 2; canvas.height = SVG_HEIGHT * 2;
                             const ctx = canvas.getContext('2d'); ctx.scale(2, 2);
                             ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, SVG_WIDTH, SVG_HEIGHT);
                             ctx.drawImage(img, 0, 0, SVG_WIDTH, SVG_HEIGHT);
                             const link = document.createElement('a'); 
-                            link.download = `Fishbone-Diagram-${Date.now()}.png`; link.href = canvas.toDataURL('image/png'); link.click();
+                            link.download = `RCA-${activeTab.toUpperCase()}-${Date.now()}.png`; link.href = canvas.toDataURL('image/png'); link.click();
                             URL.revokeObjectURL(blobURL); 
                             setIsExporting(false); showToast("PNG berhasil diunduh!");
                         };
-                        img.onerror = () => { setIsExporting(false); showToast("Gagal memproses gambar PNG."); };
+                        img.onerror = () => { 
+                            clearTimeout(fallbackTimeout);
+                            setIsExporting(false); showToast("Gagal memproses gambar PNG."); 
+                        };
                         img.src = blobURL;
                     } catch(e) { setIsExporting(false); showToast("Gagal membuat PNG."); }
                 } else if (mainContentRef.current) {
@@ -389,6 +485,54 @@
                 const svgBg = element.querySelector('.canvas-outer-bg');
                 if (svgBg) { svgBg.setAttribute('fill', '#ffffff'); svgBg.setAttribute('stroke', '#e2e8f0'); }
 
+                // Trik: Convert SVG ke Image native sementara agar sistem PDF bisa merender grafik SVG + foreignObject
+                let tempImg = null;
+                let originalSvg = null;
+                let blobURL = null;
+                if ((activeTab === 'fishbone' || activeTab === 'fta') && svgRef.current) {
+                    originalSvg = svgRef.current;
+                    const clonedSvg = originalSvg.cloneNode(true);
+                    if (!clonedSvg.getAttribute('xmlns')) clonedSvg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+                    
+                    // FIX untuk PDF: Cegah error rendering XML saat PDF
+                    clonedSvg.querySelectorAll('foreignObject *').forEach(el => {
+                        el.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
+                    });
+                    
+                    const styleElem = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+                    let cssText = '';
+                    document.querySelectorAll('style').forEach(s => cssText += s.innerHTML + '\n');
+                    styleElem.textContent = cssText;
+                    clonedSvg.insertBefore(styleElem, clonedSvg.firstChild);
+                    
+                    const origInputs = originalSvg.querySelectorAll('textarea');
+                    const clonedInputs = clonedSvg.querySelectorAll('textarea');
+                    origInputs.forEach((el, i) => { 
+                        if (clonedInputs[i]) {
+                            clonedInputs[i].innerHTML = el.value;
+                            clonedInputs[i].textContent = el.value;
+                        } 
+                    });
+                    
+                    const svgBlob = new Blob([new XMLSerializer().serializeToString(clonedSvg)], { type: 'image/svg+xml;charset=utf-8' });
+                    blobURL = URL.createObjectURL(svgBlob);
+                    
+                    await new Promise((resolve) => {
+                        tempImg = new Image();
+                        tempImg.onload = resolve;
+                        tempImg.onerror = resolve;
+                        tempImg.src = blobURL;
+                        tempImg.style.width = '100%';
+                        tempImg.style.height = 'auto';
+                        tempImg.style.display = 'block';
+                    });
+                    
+                    if (tempImg) {
+                        originalSvg.style.display = 'none';
+                        originalSvg.parentNode.insertBefore(tempImg, originalSvg);
+                    }
+                }
+
                 await new Promise(resolve => setTimeout(resolve, 300));
 
                 const opt = {
@@ -402,9 +546,11 @@
 
                 html2pdf().set(opt).from(element).save().then(() => {
                     element.classList.remove('pdf-mode-active'); noPrintElements.forEach(el => el.style.display = '');
+                    if (tempImg && originalSvg) { tempImg.remove(); originalSvg.style.display = ''; URL.revokeObjectURL(blobURL); }
                     setIsExporting(false);
                 }).catch((e) => {
                     element.classList.remove('pdf-mode-active'); noPrintElements.forEach(el => el.style.display = '');
+                    if (tempImg && originalSvg) { tempImg.remove(); originalSvg.style.display = ''; URL.revokeObjectURL(blobURL); }
                     setIsExporting(false); showToast("Gagal membuat PDF.");
                 });
             };
@@ -813,6 +959,36 @@
                 );
             })();
 
+            const getMonthYearString = (dateString) => {
+                if (!dateString) return 'Tidak Diketahui';
+                const d = new Date(dateString);
+                if (isNaN(d.getTime())) return 'Tidak Diketahui';
+                return d.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+            };
+
+            const groupedRooms = lobbyRooms.reduce((acc, room) => {
+                const isArchived = room.status === 'archived';
+                if ((lobbyTab === 'active' && isArchived) || (lobbyTab === 'archive' && !isArchived)) return acc;
+                
+                // Prioritaskan incidentDate untuk folder bulanan, jika tidak ada (ruangan lama), gunakan createdAt
+                const folderName = room.incidentDate ? getMonthYearString(room.incidentDate) : getMonthYearString(room.createdAt);
+                if (!acc[folderName]) acc[folderName] = [];
+                acc[folderName].push(room);
+                return acc;
+            }, {});
+
+            const sortedMonths = Object.keys(groupedRooms).sort((a, b) => {
+                if (a === 'Tidak Diketahui') return 1;
+                if (b === 'Tidak Diketahui') return -1;
+                const parseMonthYear = (str) => {
+                    const months = {'Januari':0, 'Februari':1, 'Maret':2, 'April':3, 'Mei':4, 'Juni':5, 'Juli':6, 'Agustus':7, 'September':8, 'Oktober':9, 'November':10, 'Desember':11};
+                    const parts = str.split(' ');
+                    if (parts.length !== 2) return 0;
+                    return new Date(parts[1], months[parts[0]] || 0, 1).getTime();
+                };
+                return parseMonthYear(b) - parseMonthYear(a);
+            });
+
             // LOBBY RENDER
             if (!inRoom) {
                 return (
@@ -833,37 +1009,97 @@
                             </div>
                             <div className="md:w-2/3 p-8 flex flex-col bg-slate-50 relative">
                                 {toastMsg && <div className="absolute top-4 right-4 bg-slate-800 text-white px-4 py-2 rounded-lg shadow-lg text-xs font-semibold z-50 animate-in fade-in">{toastMsg}</div>}
-                                {showNewRoomForm ? (
+                                {editRoomData ? (
+                                    <div className="flex-1 flex flex-col justify-center max-w-md mx-auto w-full animate-in fade-in">
+                                        <div className="mb-6">
+                                            <button onClick={() => setEditRoomData(null)} className="text-sm font-semibold text-slate-500 mb-4 flex items-center gap-1"><X className="w-4 h-4"/> Batal</button>
+                                            <h2 className="text-2xl font-bold">Edit Info RCA</h2>
+                                        </div>
+                                        <div className="space-y-4">
+                                            <div><label className="text-sm font-semibold block mb-1">Nama Ruang / Insiden</label><input type="text" value={editRoomData.name} onChange={e=>setEditRoomData({...editRoomData, name: e.target.value})} className="w-full bg-white border px-4 py-3 rounded-xl outline-none" placeholder="Ketik nama ruangan..."/></div>
+                                            <div><label className="text-sm font-semibold block mb-1">Tanggal Kejadian</label><input type="date" value={editRoomData.incidentDate} onChange={e=>setEditRoomData({...editRoomData, incidentDate: e.target.value})} className="w-full bg-white border px-4 py-3 rounded-xl outline-none" /></div>
+                                            <div><label className="text-sm font-semibold block mb-1">Masalah Utama</label><textarea rows="3" value={editRoomData.problem} onChange={e=>setEditRoomData({...editRoomData, problem: e.target.value})} className="w-full bg-white border px-4 py-3 rounded-xl outline-none" placeholder="Jelaskan masalah secara singkat..."/></div>
+                                            <div>
+                                                <label className="text-sm font-semibold block mb-1">Status RCA</label>
+                                                <select value={editRoomData.status || 'active'} onChange={e=>setEditRoomData({...editRoomData, status: e.target.value})} className="w-full bg-white border px-4 py-3 rounded-xl outline-none">
+                                                    <option value="active">🟢 Sedang Berjalan (Belum Selesai)</option>
+                                                    <option value="archived">📁 Selesai (Arsip)</option>
+                                                </select>
+                                            </div>
+                                            <button onClick={handleUpdateRoom} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow-md">Simpan Perubahan</button>
+                                        </div>
+                                    </div>
+                                ) : showNewRoomForm ? (
                                     <div className="flex-1 flex flex-col justify-center max-w-md mx-auto w-full animate-in fade-in">
                                         <div className="mb-6">
                                             <button onClick={() => setShowNewRoomForm(false)} className="text-sm font-semibold text-slate-500 mb-4 flex items-center gap-1"><X className="w-4 h-4"/> Batal</button>
                                             <h2 className="text-2xl font-bold">Buat Ruang Baru</h2>
                                         </div>
                                         <div className="space-y-4">
-                                            <div><label className="text-sm font-semibold block mb-1">Nama Ruang</label><input type="text" value={newRoomName} onChange={e=>setNewRoomName(e.target.value)} className="w-full bg-white border px-4 py-3 rounded-xl outline-none" placeholder="Ketik nama ruangan..."/></div>
+                                            <div><label className="text-sm font-semibold block mb-1">Nama Ruang / Insiden</label><input type="text" value={newRoomName} onChange={e=>setNewRoomName(e.target.value)} className="w-full bg-white border px-4 py-3 rounded-xl outline-none" placeholder="Ketik nama ruangan..."/></div>
+                                            <div><label className="text-sm font-semibold block mb-1">Tanggal Kejadian</label><input type="date" value={incidentDate} onChange={e=>setIncidentDate(e.target.value)} className="w-full bg-white border px-4 py-3 rounded-xl outline-none" /></div>
                                             <div><label className="text-sm font-semibold block mb-1">Masalah Utama</label><textarea rows="3" value={newRoomProblem} onChange={e=>setNewRoomProblem(e.target.value)} className="w-full bg-white border px-4 py-3 rounded-xl outline-none" placeholder="Jelaskan masalah secara singkat..."/></div>
                                             <button onClick={createNewRoom} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow-md">Buat Ruang</button>
                                         </div>
                                     </div>
                                 ) : (
                                     <div className="flex-1 flex flex-col h-full">
-                                        <div className="flex justify-between items-center mb-6">
-                                            <div><h2 className="text-2xl font-bold">Pilih Ruang</h2></div>
-                                            <button onClick={() => setShowNewRoomForm(true)} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2"><Plus className="w-4 h-4"/> Buat Ruang</button>
+                                        <div className="flex justify-between items-end mb-6 border-b pb-4">
+                                            <div className="flex gap-6">
+                                                <button onClick={() => setLobbyTab('active')} className={`text-xl font-bold relative ${lobbyTab === 'active' ? 'text-blue-700' : 'text-slate-400 hover:text-slate-600'}`}>
+                                                    RCA Berjalan
+                                                    {lobbyTab === 'active' && <div className="absolute -bottom-[18px] left-0 right-0 h-1 bg-blue-600 rounded-t-full"></div>}
+                                                </button>
+                                                <button onClick={() => setLobbyTab('archive')} className={`text-xl font-bold relative ${lobbyTab === 'archive' ? 'text-blue-700' : 'text-slate-400 hover:text-slate-600'}`}>
+                                                    Arsip Selesai
+                                                    {lobbyTab === 'archive' && <div className="absolute -bottom-[18px] left-0 right-0 h-1 bg-blue-600 rounded-t-full"></div>}
+                                                </button>
+                                            </div>
+                                            <button onClick={() => setShowNewRoomForm(true)} className="bg-blue-600 hover:bg-blue-700 transition-colors text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2"><Plus className="w-4 h-4"/> Buat Ruang</button>
                                         </div>
-                                        <div className="flex-1 overflow-y-auto space-y-3 pr-2">
-                                            {lobbyRooms.length === 0 ? (
-                                                <div className="h-full flex flex-col items-center justify-center text-slate-400"><Users className="w-12 h-12 mb-2 opacity-50" /><p>Belum ada ruang.</p></div>
+                                        <div className="flex-1 overflow-y-auto space-y-4 pr-2">
+                                            {sortedMonths.length === 0 ? (
+                                                <div className="h-full flex flex-col items-center justify-center text-slate-400">
+                                                    {lobbyTab === 'active' ? <Users className="w-12 h-12 mb-3 opacity-50" /> : <Archive className="w-12 h-12 mb-3 opacity-50" />}
+                                                    <p className="font-medium text-slate-500">{lobbyTab === 'active' ? 'Belum ada RCA yang sedang berjalan.' : 'Belum ada arsip RCA yang diselesaikan.'}</p>
+                                                </div>
                                             ) : (
-                                                lobbyRooms.map(room => (
-                                                    <div key={room.id} className="bg-white border p-4 rounded-xl flex items-center justify-between hover:border-blue-400 group">
-                                                        <div className="flex-1 min-w-0 pr-4">
-                                                            <h3 className="font-bold text-lg truncate">{room.name}</h3><p className="text-sm text-slate-500 truncate">{room.problem}</p>
-                                                        </div>
-                                                        <div className="flex flex-col items-end gap-2 shrink-0">
-                                                            <button onClick={() => joinRoom(room.id, room.name)} className="bg-slate-100 group-hover:bg-blue-600 text-slate-700 group-hover:text-white px-4 py-2 rounded-lg text-sm font-semibold">Gabung</button>
-                                                            <button onClick={(e) => deleteRoom(room.id, e)} className="text-red-400 text-xs font-semibold p-1">Hapus</button>
-                                                        </div>
+                                                sortedMonths.map(month => (
+                                                    <div key={month} className="bg-white border rounded-xl overflow-hidden shadow-sm">
+                                                        <button onClick={() => setExpandedFolders(prev => ({...prev, [month]: prev[month] === false ? true : false}))} className="w-full bg-slate-50 p-4 flex items-center justify-between hover:bg-slate-100 transition-colors">
+                                                            <div className="flex items-center gap-3">
+                                                                {expandedFolders[month] !== false ? <FolderOpen className="w-5 h-5 text-blue-500" /> : <Folder className="w-5 h-5 text-blue-500" />}
+                                                                <h3 className="font-bold text-slate-700">{month}</h3>
+                                                                <span className="bg-blue-100 text-blue-800 text-[11px] font-bold px-2 py-0.5 rounded-full">{groupedRooms[month].length} RCA</span>
+                                                            </div>
+                                                            <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform ${expandedFolders[month] !== false ? 'rotate-180' : ''}`} />
+                                                        </button>
+                                                        {expandedFolders[month] !== false && (
+                                                            <div className="p-4 space-y-3 bg-white border-t border-slate-100">
+                                                                {groupedRooms[month].map(room => (
+                                                                    <div key={room.id} className="border p-4 rounded-xl flex items-center justify-between hover:border-blue-400 group transition-colors">
+                                                                        <div className="flex-1 min-w-0 pr-4">
+                                                                            <h3 className="font-bold text-lg text-slate-800 truncate flex items-center gap-2">
+                                                                                {room.name}
+                                                                                {room.status === 'archived' && <span className="bg-green-100 text-green-700 text-[10px] px-2 py-0.5 rounded-full border border-green-200 uppercase tracking-wider">Selesai</span>}
+                                                                            </h3>
+                                                                            <div className="text-xs font-semibold text-slate-500 mt-1 mb-1.5 flex items-center gap-1.5">
+                                                                                <Calendar className="w-3.5 h-3.5" /> 
+                                                                                {room.incidentDate ? new Date(room.incidentDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Tanggal Tidak Dicatat'}
+                                                                            </div>
+                                                                            <p className="text-sm text-slate-500 truncate">{room.problem}</p>
+                                                                    </div>
+                                                                    <div className="flex flex-col items-end gap-2 shrink-0">
+                                                                        <button onClick={() => joinRoom(room.id, room.name)} className="bg-slate-100 hover:bg-blue-600 text-slate-700 hover:text-white px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors">Buka</button>
+                                                                        <div className="flex gap-3 px-1">
+                                                                            <button onClick={(e) => { e.stopPropagation(); setEditRoomData(room); }} className="text-blue-500 hover:text-blue-700 text-xs font-semibold">Edit</button>
+                                                                            <button onClick={(e) => deleteRoom(room.id, e)} className="text-red-400 hover:text-red-600 text-xs font-semibold">Hapus</button>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 ))
                                             )}
@@ -928,7 +1164,20 @@
                             <div className="hidden lg:flex -space-x-2 mr-4">
                                 {participants.map(p => <div key={p.uid} className="h-8 w-8 rounded-full ring-2 ring-white bg-blue-500 flex items-center justify-center text-white text-[10px] font-bold" title={p.name}>{p.name.substring(0, 2).toUpperCase()}</div>)}
                             </div>
-                            <button onClick={handleShare} className="flex items-center space-x-1.5 px-3 py-1.5 text-sm font-medium bg-green-50 text-green-700 border border-green-200 rounded-lg"><Share2 className="w-4 h-4" /><span className="hidden xl:inline">Salin Link</span></button>
+                            
+                            {activeRoomStatus !== 'archived' ? (
+                                <button onClick={handleArchiveRoom} className="hidden lg:flex items-center space-x-1.5 px-3 py-1.5 text-sm font-medium bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 transition-colors rounded-lg">
+                                    <CheckSquare className="w-4 h-4" />
+                                    <span>Selesaikan & Arsip</span>
+                                </button>
+                            ) : (
+                                <button onClick={handleRestoreRoom} className="hidden lg:flex items-center space-x-1.5 px-3 py-1.5 text-sm font-medium bg-slate-100 text-slate-700 border border-slate-300 hover:bg-slate-200 transition-colors rounded-lg" title="Buka kembali RCA ini">
+                                    <Archive className="w-4 h-4" />
+                                    <span>Telah Diarsipkan (Buka)</span>
+                                </button>
+                            )}
+
+                            <button onClick={handleShare} className="flex items-center space-x-1.5 px-3 py-1.5 text-sm font-medium bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors rounded-lg"><Share2 className="w-4 h-4" /><span className="hidden xl:inline">Salin Link</span></button>
                             <button onClick={() => setShowAIModal(true)} className="flex items-center space-x-1.5 px-3 py-1.5 text-sm font-medium bg-indigo-50 text-indigo-700 border rounded-lg"><Bot className="w-4 h-4" /><span className="hidden lg:inline">AI Generate</span></button>
                             <div className="h-5 w-px bg-slate-300 mx-1 hidden sm:block" />
                             
