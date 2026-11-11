@@ -130,7 +130,25 @@ Kembalikan format JSON gabungan yang sama persis seperti instruksi awal.`;
 
     if (!response.ok) {
       const errDetail = await response.text();
-      return res.status(response.status).json({ error: `Gemini API Error: ${errDetail}` });
+      
+      // Deteksi Limit Limit/Quota (HTTP 429 Too Many Requests)
+      if (response.status === 429) {
+        return res.status(429).json({ error: 'Limit kuota/token API Gemini telah tercapai (Cooldown). Mohon tunggu beberapa menit sebelum mencoba men-generate kembali.' });
+      }
+      
+      // Deteksi Server Sibuk (HTTP 503 Service Unavailable)
+      if (response.status === 503) {
+         return res.status(503).json({ error: 'Server AI Google sedang sibuk. Silakan coba lagi dalam beberapa saat.' });
+      }
+      
+      // Bersihkan pesan error lain agar mudah dibaca
+      let parsedError = errDetail;
+      try {
+         const jsonErr = JSON.parse(errDetail);
+         if (jsonErr.error && jsonErr.error.message) parsedError = jsonErr.error.message;
+      } catch(e) {}
+      
+      return res.status(response.status).json({ error: `Gagal diproses (Error ${response.status}): ${parsedError}` });
     }
 
     const data = await response.json();
