@@ -40,7 +40,8 @@
             Sparkles, Info, Layers, ChevronDown, Edit2, Check, X,
             HelpCircle, Eye, EyeOff, Bot, Wand2, Loader2, Trash2, FileText, Move,
             Network, ListEnd, AlignEndHorizontal, Cloud, CloudOff, Users, Share2, Globe, LogOut, CheckCircle2, XCircle,
-            FileSpreadsheet, FileDown, Image as ImageIcon, Search, Folder, FolderOpen, Archive, CheckSquare, Calendar
+            FileSpreadsheet, FileDown, Image as ImageIcon, Search, Folder, FolderOpen, Archive, CheckSquare, Calendar,
+            Save, History
         } from 'lucide-react';
 
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -186,6 +187,7 @@
 
             const [user, setUser] = useState(null);
             const [toastMsg, setToastMsg] = useState('');
+            const [snapshot, setSnapshot] = useState(null);
             const isRemoteUpdate = useRef(false);
 
             const mainContentRef = useRef(null);
@@ -368,6 +370,20 @@
                 } catch(e) {
                     showToast("Gagal mengaktifkan RCA.");
                 }
+            };
+
+            const handleSaveSnapshot = () => {
+                setSnapshot({ fishbone: JSON.parse(JSON.stringify(data)), fiveWhys: JSON.parse(JSON.stringify(fiveWhys)), ftaData: JSON.parse(JSON.stringify(ftaData)) });
+                showToast("Titik aman (Snapshot) berhasil disimpan!");
+            };
+
+            const handleRollback = () => {
+                if (!snapshot) return;
+                if (!confirm("Rollback: Kembalikan diagram ke kondisi titik aman terakhir (sebelum AI Generate / Save terakhir)?")) return;
+                setData(snapshot.fishbone);
+                setFiveWhys(snapshot.fiveWhys);
+                setFtaData(snapshot.ftaData);
+                showToast("Rollback berhasil! Data dikembalikan.");
             };
 
             // --- EXPORT FUNCTIONS (EXCEL, PNG, & SMART PDF) ---
@@ -685,6 +701,9 @@
                 
                 const activeModel = aiModel === 'custom' ? customAiModel.trim() : aiModel;
                 if (aiModel === 'custom' && !activeModel) return setAiError("Nama model kustom wajib diisi (misal: gemini-2.0-pro).");
+                
+                // OTOMATIS SIMPAN SNAPSHOT SEBELUM AI GENERATE UNTUK JAGA-JAGA
+                setSnapshot({ fishbone: JSON.parse(JSON.stringify(data)), fiveWhys: JSON.parse(JSON.stringify(fiveWhys)), ftaData: JSON.parse(JSON.stringify(ftaData)) });
                 
                 setIsGenerating(true); setAiError(''); 
                 localStorage.setItem('gemini_model', aiModel);
@@ -1165,6 +1184,11 @@
                                 {participants.map(p => <div key={p.uid} className="h-8 w-8 rounded-full ring-2 ring-white bg-blue-500 flex items-center justify-center text-white text-[10px] font-bold" title={p.name}>{p.name.substring(0, 2).toUpperCase()}</div>)}
                             </div>
                             
+                            {/* TOMBOL SAVE SNAPSHOT & ROLLBACK */}
+                            <button onClick={handleSaveSnapshot} className="hidden xl:flex items-center space-x-1.5 px-3 py-1.5 text-sm font-medium bg-white text-slate-600 border border-slate-200 hover:bg-slate-100 transition-colors rounded-lg" title="Simpan titik aman (Snapshot)"><Save className="w-4 h-4" /></button>
+                            <button onClick={handleRollback} disabled={!snapshot} className={`hidden lg:flex items-center space-x-1.5 px-3 py-1.5 text-sm font-medium border transition-colors rounded-lg ${snapshot ? 'bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100' : 'bg-slate-50 text-slate-300 border-slate-200 cursor-not-allowed'}`} title="Rollback ke titik aman terakhir"><History className="w-4 h-4" /><span className="hidden xl:inline">Rollback</span></button>
+                            <div className="h-5 w-px bg-slate-300 mx-1 hidden lg:block" />
+
                             {activeRoomStatus !== 'archived' ? (
                                 <button onClick={handleArchiveRoom} className="hidden lg:flex items-center space-x-1.5 px-3 py-1.5 text-sm font-medium bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 transition-colors rounded-lg">
                                     <CheckSquare className="w-4 h-4" />
